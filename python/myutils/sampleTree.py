@@ -58,6 +58,7 @@ class SampleTree(object):
             self.requireAllInputTrees = eval(self.config.get('Configuration', 'requireAllInputTrees')) if self.config.has_option('Configuration', 'requireAllInputTrees') else True
         else:
             self.requireAllInputTrees = False
+
         self.samples = samples
         self.tree = None
         self.nonEmptyTrees = []

@@ -13,6 +13,25 @@
 #              ETH Zurich
 #
 #====================================================================
+
+# If on Condor, run this setup
+
+if [ -f condor.tgz ]
+then
+
+    tar -xf condor.tgz
+
+    export SCRAM_ARCH=slc6_amd64_gcc700
+    export CMSSW_VER=CMSSW_*
+
+    source /cvmfs/cms.cern.ch/cmsset_default.sh
+
+    cd $CMSSW_VER/src
+    eval `scram runtime -sh`
+
+fi
+
+
 cd ${CMSSW_BASE}/src/Xbb/python/
 echo "cd ${CMSSW_BASE}/src/Xbb/python/"
 STARTTIME=$(date +%s.%N)

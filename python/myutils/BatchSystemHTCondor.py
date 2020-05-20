@@ -8,8 +8,8 @@ from BatchSystem import BatchSystem
 
 class BatchSystemHTCondor(BatchSystem):
     
-    def __init__(self, config=None, local=False, configFile=None):
-        super(BatchSystemHTCondor, self).__init__(configFile=configFile)
+    def __init__(self, config=None, interactive=False, local=False, configFile=None):
+        super(BatchSystemHTCondor, self).__init__(interactive=interactive, local=local, configFile=configFile)
         self.name = 'HTCondor'
         self.config = config
         self.noBatch = False
@@ -77,7 +77,7 @@ class BatchSystemHTCondor(BatchSystem):
         return self.run(command, runScript, repDict)
 
     def submitQueue(self):
-        for batchName, submitFileIdentifier in condorBatchGroups.iteritems():
+        for batchName, submitFileIdentifier in self.condorBatchGroups.iteritems():
             submitFileName = 'condor_{identifier}.sub'.format(identifier=submitFileIdentifier)
             command = 'condor_submit {submitFileName}  -batch-name {batchName}'.format(submitFileName=submitFileName, batchName=batchName)
             if self.interactive:
