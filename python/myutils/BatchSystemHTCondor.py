@@ -41,6 +41,10 @@ class BatchSystemHTCondor(BatchSystem):
         self.submitPreprocess(job, repDict)
 
         runScript = self.getRunScriptCommand(repDict)
+
+        if not self.interactive:
+            runScript = runScript.replace(self.configFile, os.path.basename(self.configFile))
+
         logPaths = self.getLogPaths(repDict)
 
         if not self.template:
@@ -76,6 +80,7 @@ class BatchSystemHTCondor(BatchSystem):
             'log': logPaths['log'],
             'error': logPaths['error'],
             'queue': 'workday',
+            'inifile': self.configFile,
             'rootout': rootout,
             'remap': '%s = %s' % (os.path.basename(rootout), condorout)
         }

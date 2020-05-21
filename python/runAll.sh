@@ -33,6 +33,8 @@ then
     cd src
     eval `scram runtime -sh`
 
+    cp ../../*.ini Xbb/python/.
+
 fi
 
 
