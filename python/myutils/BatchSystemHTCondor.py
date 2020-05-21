@@ -1,26 +1,35 @@
 from __future__ import print_function
 import xml.etree.ElementTree
+import os
 import subprocess
 import fnmatch
 import hashlib
 import json
 from BatchSystem import BatchSystem
+from FileList import FileList
+from FileLocator import FileLocator
 
 class BatchSystemHTCondor(BatchSystem):
     
-    def __init__(self, config=None, local=False, configFile=None):
-        super(BatchSystemHTCondor, self).__init__(configFile=configFile)
+    def __init__(self, config=None, interactive=False, local=False, configFile=None):
+        super(BatchSystemHTCondor, self).__init__(interactive=interactive, local=local, configFile=configFile)
         self.name = 'HTCondor'
         self.config = config
         self.noBatch = False
+        self.headerFileName = 'batch/condor/mit_template.sub'
+        self.templateHeader = None
         self.templateFileName = 'batch/condor/template.sub'
         self.template = None
         self.runLocally = local
         self.condorBatchGroups = {}
+        self.fileLocator = FileLocator(config)
 
     def loadTemplate(self):
         with open(self.templateFileName, 'r') as templateFile:
             self.template = templateFile.read()
+
+        with open(self.headerFileName, 'r') as templateFile:
+            self.templateHeader = templateFile.read()
 
     def getJobNames(self):
         p = subprocess.Popen(["condor_q", "-nobatch"], stdout=subprocess.PIPE, shell=True)
@@ -53,6 +62,13 @@ class BatchSystemHTCondor(BatchSystem):
             # create a new submit file
             dictHash = '%(task)s_%(timestamp)s'%(repDict) + '_%x'%hash('%r'%repDict)
 
+        rootout = '%s/%s' % (repDict['arguments']['sampleIdentifier'], self.fileLocator.getFilenameAfterPrep(FileList.decompress(repDict['arguments']['fileList'])[0]))
+        condorout = '%s/%s' % (self.config.get('Directories', repDict['arguments']['outputDir'] + 'Condor'), rootout)
+
+        condoroutdir = os.path.dirname(condorout)
+        if not os.path.exists(condoroutdir):
+            os.makedirs(condoroutdir)
+
         condorDict = {
             'runscript': runScript.split(' ')[0],
             'arguments': ' '.join(runScript.split(' ')[1:]),
@@ -60,8 +76,16 @@ class BatchSystemHTCondor(BatchSystem):
             'log': logPaths['log'],
             'error': logPaths['error'],
             'queue': 'workday',
+            'rootout': rootout,
+            'remap': '%s = %s' % (os.path.basename(rootout), condorout)
         }
+
         submitFileName = 'condor_{hash}.sub'.format(hash=dictHash)
+
+        # Write the header if the file doesn't exist
+        if not os.path.exists(submitFileName):
+            with open(submitFileName, 'w') as submitFile:
+                submitFile.write(self.templateHeader.format(**condorDict))
 
         # append to existing bath
         if isBatched:
@@ -77,7 +101,7 @@ class BatchSystemHTCondor(BatchSystem):
         return self.run(command, runScript, repDict)
 
     def submitQueue(self):
-        for batchName, submitFileIdentifier in condorBatchGroups.iteritems():
+        for batchName, submitFileIdentifier in self.condorBatchGroups.iteritems():
             submitFileName = 'condor_{identifier}.sub'.format(identifier=submitFileIdentifier)
             command = 'condor_submit {submitFileName}  -batch-name {batchName}'.format(submitFileName=submitFileName, batchName=batchName)
             if self.interactive:

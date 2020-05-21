@@ -1,10 +1,6 @@
-executable              = {runscript}
-arguments               = {arguments}
 output                  = {output}
 error                   = {error}
-log                     = {log}
-transfer_output_files   = ""
-getenv                  = True
-use_x509userproxy       = true
-+JobFlavour             = "{queue}"
+transfer_output_files   = CMSSW_10_1_0/src/Xbb/python/{rootout}
+transfer_output_remaps  = "{remap}"
+arguments               = {arguments}
 queue
