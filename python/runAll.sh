@@ -14,30 +14,6 @@
 #
 #====================================================================
 
-# If on Condor, run this setup
-
-if [ -f xbb_condor.tgz ]
-then
-
-    export SCRAM_ARCH=slc6_amd64_gcc630
-    export CMSSW_VER=CMSSW_10_1_0
-
-    source /cvmfs/cms.cern.ch/cmsset_default.sh
-
-    scramv1 project CMSSW $CMSSW_VER
-
-    cd $CMSSW_VER
-
-    tar -xf ../xbb_condor.tgz
-
-    cd src
-    eval `scram runtime -sh`
-
-    cp ../../*.ini Xbb/python/.
-
-fi
-
-
 cd ${CMSSW_BASE}/src/Xbb/python/
 echo "cd ${CMSSW_BASE}/src/Xbb/python/"
 STARTTIME=$(date +%s.%N)
