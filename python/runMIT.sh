@@ -1,6 +1,7 @@
 #! /bin/bash
 
-filelist=
+infile=$1
+config=$2
 
 export SCRAM_ARCH=slc6_amd64_gcc630
 export CMSSW_VER=CMSSW_10_1_0
@@ -22,6 +23,9 @@ cd ../..
 
 cd $CMSSW_VER/src/Xbb/python
 
-./runAll.sh run_ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8_part0 Zvv2018 run 1 noid --inputDir=PREPin --sampleIdentifier=ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8 --addCollections=Prep.VHbb --fileList=base64:eNoVzL0OgjAQAOAn0usdYnCEOMAgGEMYWC6QNC2J9pr+aHh7w/ZNH8QkQYMJkj14u0e2mzER7LqCS9m/dYSpXdenxNQvToAUVjAhgTFzy+0oTcPzKH3uMz+QSsZi1BN7+Vlt2O/JbksFr+y6rs4pfxxWx1MP9+/1dIjKAS8EpBQRMqEq8AZKKQUpaM10DiLpDxdMNyw= --outputDir=PREPout --noretry
+filelist=$(python -c "from myutils.FileList import FileList; print(FileList.compress('$infile'))")
+outfile=$(python -c "from myutils.FileLocator import FileLocator; from myutils.BetterConfigParser import BetterConfigParser; config = BetterConfigParser(); config.read('$config'); print(FileLocator(config).getFilenameAfterPrep('$infile'))")
 
-./runAll.sh sysnew_ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8_part0 Zvv2018 sysnew 1 noid  --inputDir=SYSin  --sampleIdentifier=ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8  --addCollections='VHbbCommon.EWKweights,VHbbCommon.BTagSFDeepCSV_18,VHbbCommon.HiggsReco,VHbbCommon.isGGZH,VHbbCommon.vLeptons,Sys.newBranches,Sys.fill1,Sys.fill2,Sys.fill3,VHbbCommon.LOtoNLOweight,VHbbCommon.TTweights,VHbbCommon.DYspecialWeight,VHbbCommon.JetPUIDSF,Sys.metTriggerSF,Sys.PUweight,VHbbCommon.DoubleBtagSF,VHbbCommon.HeppyStyleGen,VHbbCommon.METcorr' --fileList=base64:eNoVzL0OgjAQAOAn0usdYnCEOMAgGEMYWC6QNC2J9pr+aHh7w/ZNH8QkQYMJkj14u0e2mzER7LqCS9m/dYSpXdenxNQvToAUVjAhgTFzy+0oTcPzKH3uMz+QSsZi1BN7+Vlt2O/JbksFr+y6rs4pfxxWx1MP9+/1dIjKAS8EpBQRMqEq8AZKKQUpaM10DiLpDxdMNyw= --outputDir=SYSout --noretry
+./runAll.sh run_ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8_part0 Zvv2018 run 1 noid --inputDir=PREPin --sampleIdentifier=ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8 --addCollections=Prep.VHbb --fileList=$filelist --outputDir=PREPout --noretry
+
+./runAll.sh sysnew_ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8_part0 Zvv2018 sysnew 1 noid  --inputDir=SYSin  --sampleIdentifier=ggZH_HToBB_ZToNuNu_M125_13TeV_powheg_pythia8  --addCollections=Sys.all --fileList=$filelist --outputDir=SYSout --noretry
