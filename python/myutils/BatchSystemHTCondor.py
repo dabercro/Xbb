@@ -67,7 +67,7 @@ class BatchSystemHTCondor(BatchSystem):
             dictHash = '%(task)s_%(timestamp)s'%(repDict) + '_%x'%hash('%r'%repDict)
 
         rootout = '%s/%s' % (repDict['arguments']['sampleIdentifier'], self.fileLocator.getFilenameAfterPrep(FileList.decompress(repDict['arguments']['fileList'])[0]))
-        condorout = '%s/%s' % (self.config.get('Directories', repDict['arguments']['outputDir'] + 'Condor'), rootout)
+        condorout = '%s/%s' % (self.config.get('Directories', 'CONDORout'), rootout)
 
         condoroutdir = os.path.dirname(condorout)
         if not os.path.exists(condoroutdir):
