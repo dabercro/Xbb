@@ -113,6 +113,12 @@ class XbbRun:
                     collectionsListsReplaced.append(collection)
             else:
                 collectionsListsReplaced.append(collection)
+
+        if len(collectionsListReplaced) != len(set(collectionsListReplaced)):
+            print('Collection list has some duplicate. Check .ini files.')
+            print(collectionsListReplaced)
+            raise Exception("ConfigError")
+
         return collectionsListsReplaced
 
     # run all subjobs
