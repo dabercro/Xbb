@@ -39,22 +39,24 @@ def get_config(opts):
 
 def add_to_config(condor_config, template, sample, config, locator):
 
+    if os.environ.get('XBBDEBUG'):
+        print('Adding %s:' % sample)
+
+    sampledir = os.path.join(config.get('Directories', 'CONDORout'), sample)
+    if not os.path.exists(sampledir):
+        os.makedirs(sampledir)
+
     for part, infile in enumerate(filelist(config.get('Directories', 'samplefiles'), sample)):
+
         job = {
-            'log': '/home/dabercro/public_html/xbb/%s_part%s' % (sample, part),
+            'log': '%s_part%s' % (sample, part),
             'part': part,
             'sample': sample,
             'filelist': FileList.compress(infile),
-            'outfile': locator.getFilenameAfterPrep(infile),
-            'outdir': config.get('Directories', 'SYSout'),
-            'condorout': config.get('Directories', 'CONDORout')
+            'outfile': locator.getFilenameAfterPrep(infile)
             }
 
-        sampledir = os.path.join(job['condorout'], sample)
-        if not os.path.exists(sampledir):
-            os.makedirs(sampledir)
-
-        elif os.path.exists(os.path.join(sampledir, job['outfile'])):
+        if os.path.exists(os.path.join(sampledir, job['outfile'])):
             continue
 
         condor_config.write(template.format(**job))
@@ -67,7 +69,7 @@ if __name__ == '__main__':
     parser.add_option('-T', '--tag', dest='tag', default='default',
                       help='Tag to run the analysis with, example \'8TeV\' uses 8TeVconfig to run the analysis')
     parser.add_option('-S','--samples',dest='samples',default='*', help='samples you want to run on')
-    parser.add_option('-o', '--output', dest='output', default='condor.cfg', help='output')
+    parser.add_option('-o', '--output', dest='output', default='condor', help='output prefix')
 
     (opts, args) = parser.parse_args(sys.argv)
 
@@ -78,10 +80,22 @@ if __name__ == '__main__':
     with open('batch/condor/mit_header.sub', 'r') as header_file:
         header = header_file.read()
 
-    with open('batch/condor/template.sub', 'r') as template_file:
-        template = template_file.read()
+    logdir = os.path.join('/home/dabercro/public_html/xbb', config.get('Directories', 'Dname'))
 
-    with open(opts.output, 'w') as condor_config:
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+
+    with open('batch/condor/template.sub', 'r') as template_file:
+        template = template_file.read().format(
+            logdir=logdir,
+            tag=opts.tag,
+            outdir=config.get('Directories', 'SYSout'),
+            condorout=config.get('Directories', 'CONDORout'),
+            log='{log}', part='{part}', sample='{sample}',
+            filelist='{filelist}', outfile='{outfile}'
+            )
+
+    with open('%s_%s.cfg' % (opts.output, opts.tag), 'w') as condor_config:
 
         condor_config.write(header)
 
@@ -93,5 +107,9 @@ if __name__ == '__main__':
             sample = os.path.basename(sample_file).split('.')[0]
 
             samples = parseinfo.find(sample)
+
+            if os.environ.get('XBBDEBUG'):
+                print(samples)
+
             if len(samples) == 1:
                 add_to_config(condor_config, template, sample, config, filelocator)
