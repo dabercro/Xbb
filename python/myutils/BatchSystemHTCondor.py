@@ -66,7 +66,10 @@ class BatchSystemHTCondor(BatchSystem):
             # create a new submit file
             dictHash = '%(task)s_%(timestamp)s'%(repDict) + '_%x'%hash('%r'%repDict)
 
-        rootout = '%s/%s' % (repDict['arguments']['sampleIdentifier'], self.fileLocator.getFilenameAfterPrep(FileList.decompress(repDict['arguments']['fileList'])[0]))
+        try:
+            rootout = '%s/%s' % (repDict['arguments']['sampleIdentifier'], self.fileLocator.getFilenameAfterPrep(FileList.decompress(repDict['arguments']['fileList'])[0]))
+        except:
+            rootout = 'test/plot'
         condorout = '%s/%s' % (self.config.get('Directories', 'CONDORout'), rootout)
 
         condoroutdir = os.path.dirname(condorout)
