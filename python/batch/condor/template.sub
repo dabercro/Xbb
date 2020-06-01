@@ -1,6 +1,6 @@
-output                  = {logdir}/{log}.out
-error                   = {logdir}/{log}.err
-transfer_output_files   = CMSSW_10_1_0/src/Xbb/python/{outdir}/{sample}/{outfile}
-transfer_output_remaps  = "{outfile} = {condorout}/{sample}/{outfile}"
-arguments               =  {tag} {sample} {filelist} {part}
+output                  = {output}
+error                   = {error}
+transfer_output_files   = CMSSW_10_1_0/src/Xbb/python/{rootout}
+transfer_output_remaps  = "{remap}"
+arguments               = {arguments}
 queue

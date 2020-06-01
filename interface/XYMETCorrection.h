@@ -1,3 +1,6 @@
+#ifndef XYMETCORRECTION_H
+#define XYMETCORRECTION_H 1
+
 enum TheRunEra{y2016B,y2016C,y2016D,y2016E,y2016F,y2016G,y2016H,y2017B,y2017C,y2017D,y2017E,y2017F,y2018A,y2018B,y2018C,y2018D,y2016MC,y2017MC,y2018MC};
 
 std::pair<double,double> METXYCorr_Met_MetPhi(double uncormet, double uncormet_phi, int runnb, int year, bool isMC, int npv){
@@ -135,3 +138,5 @@ std::pair<double,double> METXYCorr_Met_MetPhi(double uncormet, double uncormet_p
   return TheXYCorr_Met_MetPhi;
 
 }
+
+#endif

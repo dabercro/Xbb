@@ -16,7 +16,7 @@ class BatchSystemHTCondor(BatchSystem):
         self.name = 'HTCondor'
         self.config = config
         self.noBatch = False
-        self.headerFileName = 'batch/condor/mit_template.sub'
+        self.headerFileName = 'batch/condor/mit_header.sub'
         self.templateHeader = None
         self.templateFileName = 'batch/condor/template.sub'
         self.template = None

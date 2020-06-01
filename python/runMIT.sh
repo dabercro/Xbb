@@ -19,7 +19,12 @@ tar -xf ../xbb_condor.tgz
 cd src
 eval `scram runtime -sh`
 
-cd Xbb/python
+cd Xbb
+
+make clean
+make
+
+cd python
 
 ./runAll.sh run_${sample}_part$part $tag run 1 noid --inputDir=PREPin --sampleIdentifier=$sample --addCollections=Prep.VHbb --fileList=$filelist --outputDir=PREPout --noretry
 

@@ -85,7 +85,7 @@ if __name__ == '__main__':
     if not os.path.exists(logdir):
         os.makedirs(logdir)
 
-    with open('batch/condor/template.sub', 'r') as template_file:
+    with open('batch/condor/mit_template.sub', 'r') as template_file:
         template = template_file.read().format(
             logdir=logdir,
             tag=opts.tag,
