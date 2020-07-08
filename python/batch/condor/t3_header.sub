@@ -1,0 +1,20 @@
+Requirements = Machine != "T3BTCH010.MIT.EDU"
+
+# basic general
+Request_Memory          = 1.2 GB
+Request_Disk            = 3 GB
+Notification            = Error
+Rank                    = Mips
+GetEnv                  = False
+Input                   = /dev/null
+use_x509userproxy       = True
+should_transfer_files   = YES
+on_exit_hold            = (ExitBySignal == True) || (ExitCode != 0)
+
+periodic_release = (JobRunCount < 5 && CurrentTime - EnteredCurrentStatus > 600)
+periodic_hold = (JobStatus == 2 && CommittedTime - CommittedSuspensionTime > 21600)
+
++AcctGroup              = "group_t3mit"
++AccountingGroup        = "group_t3mit.dabercro"
+
+transfer_input_files    = /home/dabercro/cms/cmssw/xbb_condor.tgz

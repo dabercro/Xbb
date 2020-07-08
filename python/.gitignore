@@ -1,5 +1,6 @@
-*.root
-*/*
+submissions
+tree_*.root
+xbb_info.root
 *.swo
 *.pyc
 */*.pyc
