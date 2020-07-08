@@ -1,0 +1,5 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8/RunIIFall17NanoAODv4-PU2017_1298/190426_112451/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8/RunIIFall17NanoAODv4-PU2017_1298/190426_112451/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8/RunIIFall17NanoAODv4-PU2017_1299/190426_112549/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8/RunIIFall17NanoAODv4-PU2017_1299/190426_112549/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8/RunIIFall17NanoAODv4-PU2017_1299/190426_112549/0000/tree_3.root

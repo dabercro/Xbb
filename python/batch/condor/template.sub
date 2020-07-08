@@ -1,6 +1,8 @@
+executable              = {runscript}
+arguments               = {arguments}
 output                  = {output}
 error                   = {error}
-transfer_output_files   = CMSSW_10_1_0/src/Xbb/python/{rootout}
-transfer_output_remaps  = "{remap}"
-arguments               = {arguments}
+log                     = {log}
+transfer_output_files   = ""
+getenv                  = true
 queue

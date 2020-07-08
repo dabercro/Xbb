@@ -1591,6 +1591,15 @@ double m_inv3(double pt1, double eta1, double phi1, double m1, double pt2, doubl
     return r.M();
 }
 
+ double pt (double pt1, double phi1, double pt2, double phi2) {
+
+   double x = pt1 * TMath::Cos(phi1) + pt2 * TMath::Cos(phi2);
+   double y = pt1 * TMath::Sin(phi1) + pt2 * TMath::Sin(phi2);
+
+   return TMath::Sqrt(x*x + y*y);
+
+ }
+
 }
 
 float triggerMet(float x) {

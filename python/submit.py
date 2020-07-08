@@ -168,7 +168,11 @@ if configurationNeeded:
         'tagDir': tagDir,
         'ftagdir': '%s/%s/'%(tagDir, opts.ftag),
         'logpath': '%s/%s/%s/'%(tagDir, opts.ftag, 'Logs'),
-        'plotpath': '%s/%s/%s/'%(tagDir, opts.ftag, 'Plots'),
+        'plotpath': '%s/%s/%s/'%(tagDir, opts.ftag, 'Plots') \
+            if os.environ['USER'] != 'dabercro' or opts.task != 'runplot' else \
+            '/home/dabercro/public_html/plots/%s_%s_%s' % (
+                datetime.datetime.fromtimestamp(int(time.time())).strftime('%y%m%d'),
+                opts.tag, opts.ftag),
         'limitpath': '%s/%s/%s/'%(tagDir, opts.ftag, 'Limits'),
         'confpath': '%s/%s/%s/'%(tagDir, opts.ftag, 'config')
     }

@@ -14,8 +14,30 @@
 #
 #====================================================================
 
+hostname
+
+export SCRAM_ARCH=slc6_amd64_gcc630
+export CMSSW_VER=CMSSW_10_1_0
+
+source /cvmfs/cms.cern.ch/cmsset_default.sh
+
+if [ -f xbb_condor.tgz ]
+then
+
+    scramv1 project CMSSW $CMSSW_VER
+
+    cd $CMSSW_VER
+
+    tar -xf ../xbb_condor.tgz
+
+    cd src
+    eval `scram runtime -sh`
+
+fi
+
 cd ${CMSSW_BASE}/src/Xbb/python/
 echo "cd ${CMSSW_BASE}/src/Xbb/python/"
+eval `scram runtime -sh`
 STARTTIME=$(date +%s.%N)
 ulimit -c 0
 ulimit -S -c 0

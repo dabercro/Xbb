@@ -56,7 +56,9 @@ def add_to_config(condor_config, template, sample, config, locator):
             'outfile': locator.getFilenameAfterPrep(infile)
             }
 
-        if os.path.exists(os.path.join(sampledir, job['outfile'])):
+        output_file = os.path.join(sampledir, job['outfile'])
+
+        if os.path.exists(output_file) and os.stat(output_file).st_size:
             continue
 
         condor_config.write(template.format(**job))
@@ -71,9 +73,16 @@ if __name__ == '__main__':
     parser.add_option('-S','--samples',dest='samples',default='*', help='samples you want to run on')
     parser.add_option('-o', '--output', dest='output', default='condor', help='output prefix')
 
+    parser.add_option('-c', '--config', dest='config', default=None, help='Display a config value instead of making a submit file')
+
     (opts, args) = parser.parse_args(sys.argv)
 
     config = get_config(opts)
+
+    if opts.config:
+        print(config.get(*opts.config.split(':')))
+        exit(0)
+
     filelocator = FileLocator(config)
     parseinfo = ParseInfo(samples_path=config.get('Directories', 'PREPin'), config=config)
 
@@ -89,7 +98,7 @@ if __name__ == '__main__':
         template = template_file.read().format(
             logdir=logdir,
             tag=opts.tag,
-            outdir=config.get('Directories', 'SYSout'),
+            outdir=config.get('Directories', 'CONDORin'),
             condorout=config.get('Directories', 'CONDORout'),
             log='{log}', part='{part}', sample='{sample}',
             filelist='{filelist}', outfile='{outfile}'

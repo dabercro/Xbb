@@ -85,6 +85,7 @@ class GetTopMass(AddCollectionsModule):
         for syst in self.systematics:
             for Q in self._variations(syst):
                 self.addBranch(self._v(self.branchName, syst, Q))
+                self.addBranch(self._v(self.branchName + '_noReg', syst, Q))
 
     def processEvent(self, tree):
 
@@ -128,10 +129,16 @@ class GetTopMass(AddCollectionsModule):
 
                        top_mass = self.computeTopMass_new(lep, met, cJet, self.METmethod)
 
+                       cJet.SetPtEtaPhiM(tree.Jet_pt[closestIdx], tree.Jet_eta[closestIdx], tree.Jet_phi[closestIdx], tree.Jet_mass[closestIdx])
+
+                       top_mass_noReg = self.computeTopMass_new(lep, met, cJet, self.METmethod)
+
                     elif closestIdx == -1:
                        top_mass = -99
+                       top_mass_noReg = -99
 
                     self._b(self._v(self.branchName, syst, UD))[0] = top_mass
+                    self._b(self._v(self.branchName + '_noReg', syst, UD))[0] = top_mass_noReg
 
             return True
 

@@ -1,0 +1,12 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_10.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_11.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_12.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_3.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_4.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_5.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_6.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_7.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_8.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2018/V12/ST_s-channel_4f_hadronicDecays_TuneCP5_13TeV-madgraph-pythia8/RunIIAutumn18NanoAODv6-Nano25O97/200221_202127/0000/tree_9.root

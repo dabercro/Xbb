@@ -19,16 +19,25 @@ tar -xf ../xbb_condor.tgz
 cd src
 eval `scram runtime -sh`
 
-cd Xbb
-
-make clean
-make
-
-cd python
+cd Xbb/python
 
 ./runAll.sh run_${sample}_part$part $tag run 1 noid --inputDir=PREPin --sampleIdentifier=$sample --addCollections=Prep.VHbb --fileList=$filelist --outputDir=PREPout --noretry
 
 ./runAll.sh sysnew_${sample}_part$part $tag sysnew 1 noid  --inputDir=SYSin  --sampleIdentifier=$sample  --addCollections=Sys.all --fileList=$filelist --outputDir=SYSout --noretry
 
-# Will need weights
-# ./runAll.sh eval_${sample}_part$part $tag eval 1 noid  --inputDir=MVAin  --sampleIdentifier=$sample  --outputDir=MVAout  --fileList=$filelist  --noretry
+if [ "$(expr substr $tag 1 3)" = "Zll" ]
+then
+
+    ./runAll.sh run_${sample}_part$part $tag run 1 noid --inputDir=KINFITin --sampleIdentifier=$sample  --addCollections=KinematicFit.fitter  --fileList=$filelist  --outputDir=KINFITout --noretrxy
+
+fi
+
+if [ "$(./submitMIT.py -T $tag -c 'Directories:CONDORin')" = "$(./submitMIT.py -T $tag -c 'Directories:MVAout')" ]
+then
+
+    ./runAll.sh run_${sample}_part$part $tag run 1 noid --inputDir=MVAin --sampleIdentifier=$sample --addCollections=Eval.VH --fileList=$filelist --outputDir=MVAout --noretry
+
+fi
+
+pwd
+find $(./submitMIT.py -T $tag -c 'Directories:CONDORin') -type f

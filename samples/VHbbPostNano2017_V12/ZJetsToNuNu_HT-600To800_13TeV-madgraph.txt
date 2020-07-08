@@ -1,0 +1,12 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1297/190509_151610/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1297/190509_151610/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1297/190509_151610/0000/tree_3.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1297/190509_151610/0000/tree_4.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1297/190509_151610/0000/tree_5.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1297/190509_151610/0000/tree_6.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1298/190509_151714/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1298/190509_151714/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1298/190509_151714/0000/tree_3.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1298/190509_151714/0000/tree_4.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1298/190509_151714/0000/tree_5.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/ZJetsToNuNu_HT-600To800_13TeV-madgraph/RunIIFall17NanoAODv4-PU2017_1298/190509_151714/0000/tree_6.root

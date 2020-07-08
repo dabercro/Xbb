@@ -1,0 +1,4 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/W2JetsToLNu_LHEWpT_150-250_TuneCP5_13TeV-amcnloFXFX-pythia8/RunIIFall17NanoAODv4-PU2017_1285/190427_144524/0000/tree_19.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/W2JetsToLNu_LHEWpT_150-250_TuneCP5_13TeV-amcnloFXFX-pythia8/RunIIFall17NanoAODv4-PU2017_1286/190427_144614/0000/tree_16.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/W2JetsToLNu_LHEWpT_150-250_TuneCP5_13TeV-amcnloFXFX-pythia8/RunIIFall17NanoAODv4-PU2017_1286/190427_144614/0000/tree_25.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V11/W2JetsToLNu_LHEWpT_150-250_TuneCP5_13TeV-amcnloFXFX-pythia8/RunIIFall17NanoAODv4-PU2017_1286/190427_144614/0000/tree_42.root

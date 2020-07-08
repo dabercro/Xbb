@@ -16,7 +16,7 @@ class BatchSystemHTCondor(BatchSystem):
         self.name = 'HTCondor'
         self.config = config
         self.noBatch = False
-        self.headerFileName = 'batch/condor/mit_header.sub'
+        self.headerFileName = 'batch/condor/t3_header.sub'
         self.templateHeader = None
         self.templateFileName = 'batch/condor/template.sub'
         self.template = None
@@ -41,10 +41,6 @@ class BatchSystemHTCondor(BatchSystem):
         self.submitPreprocess(job, repDict)
 
         runScript = self.getRunScriptCommand(repDict)
-
-        if not self.interactive:
-            runScript = runScript.replace(self.configFile, os.path.basename(self.configFile))
-
         logPaths = self.getLogPaths(repDict)
 
         if not self.template:
@@ -66,26 +62,12 @@ class BatchSystemHTCondor(BatchSystem):
             # create a new submit file
             dictHash = '%(task)s_%(timestamp)s'%(repDict) + '_%x'%hash('%r'%repDict)
 
-        try:
-            rootout = '%s/%s' % (repDict['arguments']['sampleIdentifier'], self.fileLocator.getFilenameAfterPrep(FileList.decompress(repDict['arguments']['fileList'])[0]))
-        except:
-            rootout = 'test/plot'
-        condorout = '%s/%s' % (self.config.get('Directories', 'CONDORout'), rootout)
-
-        condoroutdir = os.path.dirname(condorout)
-        if not os.path.exists(condoroutdir):
-            os.makedirs(condoroutdir)
-
         condorDict = {
             'runscript': runScript.split(' ')[0],
             'arguments': ' '.join(runScript.split(' ')[1:]),
             'output': logPaths['out'],
             'log': logPaths['log'],
             'error': logPaths['error'],
-            'queue': 'workday',
-            'inifile': self.configFile,
-            'rootout': rootout,
-            'remap': '%s = %s' % (os.path.basename(rootout), condorout)
         }
 
         submitFileName = 'condor_{hash}.sub'.format(hash=dictHash)
@@ -93,7 +75,7 @@ class BatchSystemHTCondor(BatchSystem):
         # Write the header if the file doesn't exist
         if not os.path.exists(submitFileName):
             with open(submitFileName, 'w') as submitFile:
-                submitFile.write(self.templateHeader.format(**condorDict))
+                submitFile.write(self.templateHeader)
 
         # append to existing bath
         if isBatched:

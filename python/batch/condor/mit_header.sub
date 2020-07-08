@@ -36,6 +36,7 @@ Requirements = Arch == "X86_64" && \
                Machine != "node286.cm.cluster" && \
                Machine != "node287.cm.cluster" && \
                Machine != "node288.cm.cluster" && \
+               Machine != "node271.eth.cluster" && \
                Machine != "node280.eth.cluster" && \
                Machine != "node288.eth.cluster" && \
                Machine != "node289.eth.cluster" && \
@@ -81,11 +82,11 @@ use_x509userproxy       = True
 should_transfer_files   = YES
 on_exit_hold            = (ExitBySignal == True) || (ExitCode != 0)
 
-# periodic_release = (JobRunCount < 5 && CurrentTime - EnteredCurrentStatus > 300)
-# periodic_hold = (JobStatus == 2 && CommittedTime - CommittedSuspensionTime > 21600)
+periodic_release = (JobRunCount < 5 && CurrentTime - EnteredCurrentStatus > 600)
+periodic_hold = (JobStatus == 2 && CommittedTime - CommittedSuspensionTime > 21600)
 
-+AcctGroup              = "group_cmsuser"
-+AccountingGroup        = "group_cmsuser.dabercro"
++AcctGroup              = "group_t3mit"
++AccountingGroup        = "group_t3mit.dabercro"
 
 transfer_input_files    = /home/dabercro/cms/cmssw/xbb_condor.tgz
 executable              = /home/dabercro/cms/cmssw/CMSSW_10_1_0/src/Xbb/python/runMIT.sh

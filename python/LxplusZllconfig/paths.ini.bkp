@@ -1,0 +1,78 @@
+[Configuration]
+
+#!! List of the config you want to use
+#!! The number of config has to be exaclty 7. Will include only essential configuration files for now
+#!! The list only support spaces between configs
+List = paths.ini general.ini cuts.ini training.ini datacards.ini plots.ini lhe_weights.ini samples_nosplit.ini
+
+# "PSI" or "lxplus-condor"
+whereToLaunch = lxplus-condor
+channel = Zll
+TreeCopierPSI = True
+files_per_job = 50
+nprocesses = 0
+
+user = %(USER)s
+cmsswbase = %(CMSSW_BASE)s
+run_locally = False
+use_ntuples_from_CERN = False
+
+# first one is the primary one
+xrootdRedirectors = root://eoscms.cern.ch/
+pnfsStoragePath = /eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/
+
+[Directories]
+Dname = logs_v25
+;!! The directory with the code
+Wdir = <!Configuration|cmsswbase!>/src/
+vhbbpath= <!Directories|Wdir!>/Xbb
+tagDir = <!Directories|vhbbpath!>/python/<!Directories|Dname!>/
+
+#scratch = /eos/user/p/piberger/scratch
+scratch = /tmp/<!Configuration|user!>/
+
+samplepath = <!Directories|plottingSamples!>
+samplefiles = <!Configuration|cmsswbase!>/src/Xbb/python/LxplusZllconfig/V25_iter7_files
+
+;!! specifies the .cfg files with the Samples information
+samplesinfo: <!Directories|vhbbpath!>/python/LxplusZllconfig/samples_nosplit.ini
+
+;!! where you want to store the logfiles from job submissions
+;these lines are automatically written by the submit script!
+logpath: /mnt/t3nfs01/data01/shome/gaperrin/VHbb2018/CMSSW_10_1_0/src//Xbb/python/logs_v25//rundc-v1/Logs/
+plotpath: /mnt/t3nfs01/data01/shome/gaperrin/VHbb2018/CMSSW_10_1_0/src//Xbb/python/logs_v25//rundc-v1/Plots/
+limits: /mnt/t3nfs01/data01/shome/gaperrin/VHbb2018/CMSSW_10_1_0/src//Xbb/python/logs_v25//rundc-v1/Limits/
+
+;!! from which samples to plot and where to save the plots
+;plottingSamples: <!Directories|PREPout!>
+;plottingSamples: <!Directories|SYSout!>
+;plottingSamples: <!Directories|MVAin!>
+plottingSamples: <!Directories|MVAout!>
+
+;#!! cached files
+tmpSamples = root://eosuser.cern.ch//eos/user/p/piberger/pnfs/VHbb/tmp/LxplusZlltest/v4/
+
+sampleName = WW_pythia8
+
+#!! from which samples to make the DCs and where to save the DCs
+;To make di-jet mass plots
+dcSamples: <!Directories|MVAout!>
+
+;#!! From where to take the raw samples and where to put the prepared trees:
+PREPin: .
+PREPout: root://eoscms.cern.ch//eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/V25/prep/
+
+#!! On which samples to apply the regression and write the sys and where to write the resulting trees:
+
+# 1) first correct Vtype (V25)
+SYSin: root://eoscms.cern.ch//eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/V25/prep/
+SYSout: root://eoscms.cern.ch//eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/V25/sys_vtype/
+
+# 2) run regression, add branches for sys variation and weights
+#SYSin: root://eoscms.cern.ch//eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/V25/sys_vtype/
+#SYSout: root://eoscms.cern.ch//eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/V25/sys_vtype_reg/
+
+#!! On which samples to evaluate the MVA on and where to write the resulting trees:
+MVAin: <!Directories|SYSout!> 
+MVAout: root://eoscms.cern.ch//eos/cms/store/group/phys_higgs/hbb/ntuples/Xbb/pnfs/V25/mva/
+
