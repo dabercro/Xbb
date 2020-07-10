@@ -2,6 +2,7 @@
 from __future__ import print_function
 import sys, ROOT, warnings
 ROOT.gROOT.SetBatch(True)
+ROOT.v5.TFormula.SetMaxima(10000)
 #suppres the EvalInstace conversion warning bug
 warnings.filterwarnings( action='ignore', category=RuntimeWarning, message='creating converter.*' )
 from optparse import OptionParser
@@ -12,6 +13,7 @@ from myutils.Datacard import Datacard
 from myutils.BranchList import BranchList
 from myutils.FileList import FileList
 import resource
+import os
 
 # ------------------------------------------------------------------------------
 # script to produce cached tree for datacards
@@ -19,7 +21,7 @@ import resource
 class CacheDatacards(object):
 
     def __init__(self, config, regions, sampleToCache, splitFilesChunks=1, chunkNumber=1, splitFilesChunkSize=-1, forceRedo=False, fileList=None, verbose=False):
-        self.verbose = verbose
+        self.verbose = verbose or ('XBBDEBUG' in os.environ)
         self.config = config
         self.regions = regions
         self.treeCaches = []
@@ -66,7 +68,7 @@ class CacheDatacards(object):
                     isData = (sample.type == 'DATA')
                     systematicsCuts = sorted(list(set([x['cachecut'] for x in dcMaker.getSystematicsList(isData=isData)])))
                     sampleCuts = {'AND': [sample.subcut, {'OR': systematicsCuts}]}
-                    if True or self.verbose:
+                    if self.verbose:
                         print (json.dumps(sampleCuts, sort_keys=True, indent=8, default=str))
 
                     # make list of branches to keep in root file

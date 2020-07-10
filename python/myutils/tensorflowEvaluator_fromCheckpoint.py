@@ -26,6 +26,7 @@ class tensorflowEvaluator(AddCollectionsModule):
         self.nano = nano
         self.debug = False
         self.condition = condition
+        self.fixInputs = []
         super(tensorflowEvaluator, self).__init__()
 
     def customInit(self, initVars):
@@ -55,6 +56,9 @@ class tensorflowEvaluator(AddCollectionsModule):
 
         if self.scalerDump is not None and not os.path.isfile(self.scalerDump):
             self.scalerDump = None
+
+        if self.config.has_option(self.mvaName, 'fixInputs'):
+            self.fixInputs = eval(self.config.get(self.mvaName, 'fixInputs'))
 
         if os.path.isdir(self.checkpoint):
             self.checkpoint += '/model.ckpt'
@@ -131,6 +135,13 @@ class tensorflowEvaluator(AddCollectionsModule):
                 if self.config.has_option(self.mvaName, 'forceInputFeaturesFromConfig') and eval(self.config.get(self.mvaName, 'forceInputFeaturesFromConfig')):
                     print("\x1b[31mWARNING: forceInputFeaturesFromConfig is enabled, features from configuration will be used although they could be incompatible with the features used during training.\x1b[0m")
 
+            # fix input features at constant values: check if features given exist in checkpoint
+            if self.fixInputs:
+                for feature,value in self.fixInputs.items():
+                    if feature not in self.featuresCheckpoint:
+                        print("ERROR: can't fix input feature '", feature, "' to value ", value," => feature not found in checkpoint.")
+                        raise Exception("ConfigError")
+
         self.featureList = XbbMvaInputsList(self.features, config=self.config)
         self.nFeatures   = self.featureList.length()
 
@@ -195,7 +206,10 @@ class tensorflowEvaluator(AddCollectionsModule):
                 inputs = np.full((len(self.systematics), self.nFeatures), 0.0, dtype=np.float32)
                 for j, syst in enumerate(self.systematics):
                     for i, var in enumerate(self.inputVariables[syst]):
-                        inputs[j,i] = self.sampleTree.evaluate(var)
+                        if var in self.fixInputs:
+                            inputs[j,i] = self.fixInputs[var]
+                        else:
+                            inputs[j,i] = self.sampleTree.evaluate(var)
 
                 # use TensorflowDNNEvaluator
                 probabilities = self.ev.eval(inputs)

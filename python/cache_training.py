@@ -19,7 +19,10 @@ class CacheTraining(object):
         self.trainingRegions = trainingRegions
 
         self.sampleTree = None
-        self.samplesPath = self.config.get('Directories', 'MVAin')
+        if config.has_option('Directories', 'trainingSamples'):
+            self.samplesPath = self.config.get('Directories', 'trainingSamples')
+        else:
+            self.samplesPath = self.config.get('Directories', 'MVAin')
         self.samplesInfo = ParseInfo(samples_path=self.samplesPath, config=self.config) 
         self.sampleFilesFolder = self.config.get('Directories', 'samplefiles')
 

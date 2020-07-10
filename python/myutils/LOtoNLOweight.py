@@ -121,6 +121,11 @@ class LOtoNLOweight(AddCollectionsModule):
 
     def customInit(self, initVars):
         self.sample = initVars['sample']
+        # this is just to separate V+jets from other samples, LOtoNLO weight does not use distinction between 
+        # different V+jets components from sampleIndex, but explicit formula used in derivation of weight
+        self.sampleIndexBase = self.sample.index[0] if type(self.sample.index) == list else self.sample.index
+        self.sampleIndexBase = int(self.sampleIndexBase - (self.sampleIndexBase % 10))
+
         self.config = initVars['config']
         if not self.sample.isData():
             self.addBranch(self.branchName)
@@ -214,53 +219,21 @@ class LOtoNLOweight(AddCollectionsModule):
                     etabb = abs(tree.Jet_eta[tree.hJidx[0]]-tree.Jet_eta[tree.hJidx[1]])
                 else:
                     etabb = 0.0
-                njets = tree.sampleIndex % 10
-                if njets < 3:
-                    if self.year == 2017:
-                        # apply only one of them!
+                #njets = self.sampleIndex % 10
 
-                        # eta bb derived from 2017 DY
-                        self._b(self.branchName)[0] = 1.153 * self.LOtoNLOWeightBjetSplitEtabb2017(etabb, njets) 
+                if self.year == 2017:
+                    # apply only one of them!
 
-                        # eta bb derived from 2016 DY
-                        self._b(self.branchName + '_2016')[0] = 1.153 * self.LOtoNLOWeightBjetSplitEtabb(etabb, njets) 
+                    # eta bb derived from 2017 DY
+                    self._b(self.branchName)[0] = 1.153 * self.LOtoNLOWeightBjetSplitEtabb2017(etabb, nb) 
 
-                        # vpt derived from 2017 ZJetsNuNu/WJetsLNu/DY
-                        self._b(self.branchName + '_LHEVptV2b')[0]         = self.LOtoNLOWeightBjetSplitVpt2017V2b(tree.LHE_Vpt, njets, self.sample.identifier)
-                        self._b(self.branchName + '_LHEVptV2b_p0_Up')[0]   = self.LOtoNLOWeightBjetSplitVpt2017V2b(tree.LHE_Vpt, njets, self.sample.identifier, var0=1.0)
-                        self._b(self.branchName + '_LHEVptV2b_p0_Down')[0] = self.LOtoNLOWeightBjetSplitVpt2017V2b(tree.LHE_Vpt, njets, self.sample.identifier, var0=-1.0)
-                        self._b(self.branchName + '_LHEVptV2b_p1_Up')[0]   = self.LOtoNLOWeightBjetSplitVpt2017V2b(tree.LHE_Vpt, njets, self.sample.identifier, var1=1.0)
-                        self._b(self.branchName + '_LHEVptV2b_p1_Down')[0] = self.LOtoNLOWeightBjetSplitVpt2017V2b(tree.LHE_Vpt, njets, self.sample.identifier, var1=-1.0)
+                    # eta bb derived from 2016 DY
+                    self._b(self.branchName + '_2016')[0] = 1.153 * self.LOtoNLOWeightBjetSplitEtabb(etabb, nb) 
 
-                        # LOtoNLOWeightBjetSplitVptNjet2017V3
-                        if self.addV3:
-                            naddjets = self.sampleTree.evaluate(self.nAddJetsFormula)
-                            self._b(self.branchName + '_LHEVptV3')[0]         = self.LOtoNLOWeight2017V3(tree.LHE_Vpt, njets, naddjets, self.sample.identifier)
-                            for naddjet_var in [0,1,2,3,4,5]:
-                                self._b(self.branchName + '_LHEVptV3_njet%d_p0_Up'%(naddjet_var))[0] = self.LOtoNLOWeight2017V3(tree.LHE_Vpt, njets, naddjets, self.sample.identifier, var0=1.0) if naddjets==naddjet_var else self._b(self.branchName + '_LHEVptV3')[0]
-                                self._b(self.branchName + '_LHEVptV3_njet%d_p0_Down'%(naddjet_var))[0] = self.LOtoNLOWeight2017V3(tree.LHE_Vpt, njets, naddjets, self.sample.identifier, var0=-1.0) if naddjets==naddjet_var else self._b(self.branchName + '_LHEVptV3')[0]
-                                self._b(self.branchName + '_LHEVptV3_njet%d_p1_Up'%(naddjet_var))[0] = self.LOtoNLOWeight2017V3(tree.LHE_Vpt, njets, naddjets, self.sample.identifier, var1=1.0) if naddjets==naddjet_var else self._b(self.branchName + '_LHEVptV3')[0]
-                                self._b(self.branchName + '_LHEVptV3_njet%d_p1_Down'%(naddjet_var))[0] = self.LOtoNLOWeight2017V3(tree.LHE_Vpt, njets, naddjets, self.sample.identifier, var1=-1.0) if naddjets==naddjet_var else self._b(self.branchName + '_LHEVptV3')[0]
-                        
-                        # LOtoNLOWeightV4
-                        if self.addV4:
-                            deltaEtaBin = int(self.sampleTree.evaluate(self.deltaEtaFormula))
-                            self._b(self.branchName + '_LHEVptV4')[0]         = self.LOtoNLOWeight2017V4(tree.LHE_Vpt, deltaEtaBin,  njets, self.sample.identifier)
-                            for deltaEtaBin_var in [0,1,2,3,4,5,6,7,8,9,10]:
-                                self._b(self.branchName + '_LHEVptV4_deta%d_p0_Up'%(deltaEtaBin_var))[0]   = self.LOtoNLOWeight2017V4(tree.LHE_Vpt, deltaEtaBin, njets, self.sample.identifier, var0=1.0)  if deltaEtaBin==deltaEtaBin_var else self._b(self.branchName + '_LHEVptV4')[0]
-                                self._b(self.branchName + '_LHEVptV4_deta%d_p0_Down'%(deltaEtaBin_var))[0] = self.LOtoNLOWeight2017V4(tree.LHE_Vpt, deltaEtaBin, njets, self.sample.identifier, var0=-1.0) if deltaEtaBin==deltaEtaBin_var else self._b(self.branchName + '_LHEVptV4')[0]
-                                self._b(self.branchName + '_LHEVptV4_deta%d_p1_Up'%(deltaEtaBin_var))[0]   = self.LOtoNLOWeight2017V4(tree.LHE_Vpt, deltaEtaBin, njets, self.sample.identifier, var1=1.0)  if deltaEtaBin==deltaEtaBin_var else self._b(self.branchName + '_LHEVptV4')[0]
-                                self._b(self.branchName + '_LHEVptV4_deta%d_p1_Down'%(deltaEtaBin_var))[0] = self.LOtoNLOWeight2017V4(tree.LHE_Vpt, deltaEtaBin, njets, self.sample.identifier, var1=-1.0) if deltaEtaBin==deltaEtaBin_var else self._b(self.branchName + '_LHEVptV4')[0]
-
-                    else:
-                        self._b(self.branchName)[0] = 1.153 * self.LOtoNLOWeightBjetSplitEtabb(etabb, njets) 
-                else:
-                    print("\x1b[31mERROR: sampleIndex==", tree.sampleIndex, "\x1b[0m")
-                    raise Exception("IllegalSampleIndex")
 
     def applies(self, tree):
         isVJets = False
-        sampleCat = int(tree.sampleIndex - (tree.sampleIndex % 10))
+        sampleCat = self.sampleIndexBase
 
         # sync with AT: DYJetsToLL_M-4to50 not reweighted
 

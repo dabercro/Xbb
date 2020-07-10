@@ -773,6 +773,15 @@ class Datacard(object):
                             else:
                                 print('\x1b[31mDEBUG: using full sample for sample of type', sample.type, 'for', systematics['var'].lower(), "\x1b[0m")
 
+                    # add shape cut
+                    if self.config.has_option('Cuts', 'additionalShapeCut'):
+                        if 'addCut' in systematics and  systematics['addCut'] is not None:
+                            systematics['addCut'] = "(" + systematics['addCut'] + ")&&(" + self.config.get('Cuts','additionalShapeCut')  + ")"
+                        else:
+                            systematics['addCut'] = "(" + self.config.get('Cuts','additionalShapeCut')  + ")"
+                        sampleTree.addFormula(systematics['addCut'])
+                        print("\x1b[31mINFO: additional cut active for making shapes:", self.config.get('Cuts','additionalShapeCut'), "\x1b[0m")
+
                     # add TTreeFormulas
                     systematics['cutWithBlinding'] = systematics['cutWithBlinding'].replace(' ', '')
 

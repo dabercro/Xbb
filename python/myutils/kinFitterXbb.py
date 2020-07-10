@@ -58,7 +58,7 @@ def fit_lepton(v, ptErr):
 # https://github.com/capalmer85/AnalysisTools/blob/master/python/kinfitter.py
 class kinFitterXbb(AddCollectionsModule):
 
-    def __init__(self, year, branchName="kinFit", useMZconstraint=True, recoilPtThreshold=20.0, hJidx="hJidx"):
+    def __init__(self, year, branchName="kinFit", useMZconstraint=True, recoilPtThreshold=20.0, jetIdCut=4, puIdCut=6, hJidx="hJidx"):
         super(kinFitterXbb, self).__init__()
         self.version = 2
         self.branchName = branchName
@@ -66,6 +66,8 @@ class kinFitterXbb(AddCollectionsModule):
         self.debug = False
         self.enabled = True
         self.year = year
+        self.jetIdCut = jetIdCut
+        self.puIdCut = puIdCut
         self.HH4B_RES_SCALE = 0.62
         self.LLVV_PXY_VAR = 8.0**2 
         self.Z_MASS = 91.0
@@ -210,7 +212,7 @@ class kinFitterXbb(AddCollectionsModule):
 
                     # FSR jets
                     for i in range(tree.nJet):
-                        if i not in hJidx and tree.Jet_lepFilter[i] > 0 and (tree.Jet_puId[i] > 6 or tree.Jet_Pt[i] > 50) and tree.Jet_jetId[i] > 4 and pt[i] > 20 and abs(eta[i]) < 3.0:
+                        if i not in hJidx and tree.Jet_lepFilter[i] > 0 and (tree.Jet_puId[i] > self.puIdCut or tree.Jet_Pt[i] > 50) and tree.Jet_jetId[i] > self.jetIdCut and pt[i] > 20 and abs(eta[i]) < 3.0:
 
                             j_fsr = fourvector(pt[i], eta[i], phi[i], mass[i])
 
@@ -230,7 +232,7 @@ class kinFitterXbb(AddCollectionsModule):
                     # recoil jets
                     recoil_jets = []
                     for i in range(tree.nJet):
-                        if i not in hJidx and i not in fsrJidx and (tree.Jet_puId[i] > 6 or tree.Jet_Pt[i] > 50) and tree.Jet_jetId[i] > 4 and tree.Jet_lepFilter[i] > 0 and pt[i] > self.recoilPtThreshold:
+                        if i not in hJidx and i not in fsrJidx and (tree.Jet_puId[i] > self.puIdCut or tree.Jet_Pt[i] > 50) and tree.Jet_jetId[i] > self.jetIdCut and tree.Jet_lepFilter[i] > 0 and pt[i] > self.recoilPtThreshold:
                             recoil_jets.append(fourvector(pt[i], eta[i], phi[i], mass[i]))
                     recoil_sum = sum(recoil_jets, ROOT.TLorentzVector())
 
@@ -407,4 +409,3 @@ class kinFitterXbb(AddCollectionsModule):
                     self._b(self.bDict[syst]['llbbr_phi_fit'])[0]         = -99
                     self._b(self.bDict[syst]['llbbr_eta_fit'])[0]         = -99 
                     self._b(self.bDict[syst]['llbbr_mass_fit'])[0]        = -99
-

@@ -16,7 +16,7 @@ class VHbbSelection(AddCollectionsModule):
     def __init__(self, debug=False, year="none", channels=["Wln","Zll","Znn"], puIdCut=6, jetIdCut=4, debugEvents=[], isoWen=0.06, isoWmn=0.06, isoZmm=0.25, isoZee=0.15, recomputeVtype=False, btagMaxCut=None, idWmn="default", idWmnCut=1, idWen="default", idWenCut=1, idZmm="default", idZmmCut=1, idZee="default", idZeeCut=1):
         super(VHbbSelection, self).__init__()
         self.debug = debug or 'XBBDEBUG' in os.environ
-        self.version = 5
+        self.version = 6
         self.stats = {}
         self.year = year
         self.channels = channels
@@ -86,7 +86,7 @@ class VHbbSelection(AddCollectionsModule):
         # updated to july 2018 Jet/MET recommendations
         # reference: https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
         if self.year == "2016":
-            self.metFilters = ["Flag_goodVertices", "Flag_globalSuperTightHalo2016Filter", "Flag_HBHENoiseFilter", "Flag_HBHENoiseIsoFilter", "Flag_EcalDeadCellTriggerPrimitiveFilter"]
+            self.metFilters = ["Flag_goodVertices", "Flag_globalSuperTightHalo2016Filter", "Flag_HBHENoiseFilter", "Flag_HBHENoiseIsoFilter", "Flag_EcalDeadCellTriggerPrimitiveFilter", "Flag_BadPFMuonFilter"]
         elif self.year in ["2017","2018"]:
             self.metFilters = ["Flag_goodVertices", "Flag_globalSuperTightHalo2016Filter", "Flag_HBHENoiseFilter", "Flag_HBHENoiseIsoFilter", "Flag_EcalDeadCellTriggerPrimitiveFilter", "Flag_BadPFMuonFilter", "Flag_ecalBadCalibFilter"]
         if self.isData:
@@ -272,7 +272,7 @@ class VHbbSelection(AddCollectionsModule):
                         break
         return indices
 
-    def HighestTaggerValueFatJet(self, tree, ptCut, msdCut, etaCut, taggerName, systList=None):
+    def HighestTaggerValueFatJet(self, tree, ptCut, msdCut, etaCut, taggerName, systList=None, Vphi=None, Vphi_syst=None):
         fatJetMaxTagger = []
         Hbb_fjidx       = []
         Pt              = []
@@ -283,6 +283,8 @@ class VHbbSelection(AddCollectionsModule):
         Pt_nom  = tree.FatJet_Pt
         Msd_nom = tree.FatJet_Msoftdrop
         eta     = tree.FatJet_eta
+        phi     = tree.FatJet_phi
+        lepFilter = tree.FatJet_lepFilter
         tagger  = getattr(tree, taggerName) 
 
         for syst in systematics: 
@@ -305,10 +307,13 @@ class VHbbSelection(AddCollectionsModule):
 
         for i in range(tree.nFatJet):
             for j in range(nSystematics):
+                selectedVphi = Vphi_syst[systematics[j]] if (Vphi_syst is not None and systematics[j] in Vphi_syst) else Vphi
+                #if Pt[j][i] > ptCut and abs(eta[i]) < etaCut and Msd[j][i] > msdCut and lepFilter[i]:
                 if Pt[j][i] > ptCut and abs(eta[i]) < etaCut and Msd[j][i] > msdCut:
-                    if tagger[i] > fatJetMaxTagger[j]:
-                        fatJetMaxTagger[j] = tagger[i]
-                        Hbb_fjidx[j] = i
+                    if selectedVphi is None or abs(ROOT.TVector2.Phi_mpi_pi(selectedVphi-phi[i]))>1.57:
+                        if tagger[i] > fatJetMaxTagger[j]:
+                            fatJetMaxTagger[j] = tagger[i]
+                            Hbb_fjidx[j] = i
 
         # return list for systematic variations given and scalar otherwise
         if systList is not None:
@@ -510,6 +515,7 @@ class VHbbSelection(AddCollectionsModule):
             self.cutFlow[3] += 1
             
             # VECTOR BOSON
+            Vphi_syst = {}
             any_v_sysvar_passes = False
             if self._b("isZee")[0] or self._b("isZmm")[0]:
                 lep1 = ROOT.TLorentzVector()
@@ -551,19 +557,20 @@ class VHbbSelection(AddCollectionsModule):
                 if self.sample.isMC():
                     MET_syst = ROOT.TLorentzVector()
                     for syst in self.METsystematics:
-                        if any_v_sysvar_passes:
-                            break
                         for UD in self._variations(syst):
-                            if any_v_sysvar_passes:
-                                break
-                            MET.SetPtEtaPhiM(getattr(tree, 'MET_pt_'+syst+UD), 0.0, getattr(tree, 'MET_phi_'+syst+UD), 0.0)
+                            MET_syst.SetPtEtaPhiM(getattr(tree, 'MET_pt_'+syst+UD), 0.0, getattr(tree, 'MET_phi_'+syst+UD), 0.0)
                             V_syst = MET_syst + Lep
+                            Vphi_syst[syst+UD] = V_syst.Phi()
                             if V_syst.Pt() > 150.0:
                                 any_v_sysvar_passes = True
 
             elif self._b("isZnn")[0]:
                 MET = ROOT.TLorentzVector()
                 MET.SetPtEtaPhiM(tree.MET_Pt, 0.0, tree.MET_Phi, 0.0)
+                if self.sample.isMC():
+                    for syst in self.METsystematics:
+                        for UD in self._variations(syst):
+                            Vphi_syst[syst+UD] = getattr(tree, 'MET_phi_'+syst+UD)
                 V = MET
             else:
                 self.count("fail_lepton_selection")
@@ -667,7 +674,7 @@ class VHbbSelection(AddCollectionsModule):
             any_boostedJet_syst = False
 
             # nominal
-            Hbb_fjidx = self.HighestTaggerValueFatJet(tree, ptCut=250.0, msdCut=50.0, etaCut=2.5, taggerName='FatJet_deepTagMD_bbvsLight', systList=None)
+            Hbb_fjidx = self.HighestTaggerValueFatJet(tree, ptCut=250.0, msdCut=50.0, etaCut=2.5, taggerName='FatJet_deepTagMD_bbvsLight', systList=None, Vphi=V.Phi())
             self._b("Hbb_fjidx")[0] = Hbb_fjidx
             if Hbb_fjidx > -1:
                 any_boostedJet_syst = True
@@ -676,9 +683,9 @@ class VHbbSelection(AddCollectionsModule):
             if self.sample.isMC():
                 systList     = ["".join(x) for x in itertools.product(self.systematicsBoosted, ["Up", "Down"])]
                 nSystematics = len(systList)
-                
+
                 # return list of jet indices for systematic variations
-                Hbb_fjidx_syst = self.HighestTaggerValueFatJet(tree, ptCut=250.0, msdCut=50.0, etaCut=2.5, taggerName='FatJet_deepTagMD_bbvsLight', systList=systList)
+                Hbb_fjidx_syst = self.HighestTaggerValueFatJet(tree, ptCut=250.0, msdCut=50.0, etaCut=2.5, taggerName='FatJet_deepTagMD_bbvsLight', systList=systList, Vphi=V.Phi(), Vphi_syst=Vphi_syst)
                 for j in range(nSystematics):
                     fJidxName_syst = "Hbb_fjidx_{syst}".format(syst=systList[j])
                     self._b(fJidxName_syst)[0] = Hbb_fjidx_syst[j]
@@ -719,7 +726,7 @@ class VHbbSelection(AddCollectionsModule):
         print "  Vpt                ", self.cutFlow[6]
         print "  end                ", self.cutFlow[7]
 
-        print "efficiency:", 1.0*self.cutFlow[7]/self.cutFlow[0]
+        print "efficiency:", (1.0*self.cutFlow[7]/self.cutFlow[0]) if self.cutFlow[0] > 0 else "-"
 
         #print "jet selections:", self.jetDefinitions
 

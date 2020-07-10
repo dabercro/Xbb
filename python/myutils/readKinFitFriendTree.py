@@ -36,7 +36,7 @@ class readKinFitFriendTree(AddCollectionsModule):
 
         # unfortunately friend trees are not copied by CloneTree and getattr() also doesn't work in pyROOT :-(
         # pretty ugly hack
-        self.kinFitter = kinFitterXbb(year=2017)
+        self.kinFitter = kinFitterXbb(year=2016, jetIdCut=2, puIdCut=6)
         self.kinFitter.systematics = self.systematics
         self.kinFitter.customInit(initVars)
         self.branches = self.kinFitter.branches

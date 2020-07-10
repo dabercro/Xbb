@@ -195,6 +195,19 @@ class XbbTools(object):
         infoFile.Write()
         infoFile.Close()
 
+    @staticmethod
+    def resolvePlotVariable(varName, config):
+        if config.has_section('plotDef:' + varName):
+            return varName
+        else:
+            for section in config.sections():
+                if section.startswith('plotDef:'):
+                    if config.get(section, 'relPath').strip() == varName:
+                        return section.split('plotDef:')[1]
+            print("\x1b[31mERROR: plot variable", varName, " could not be resolved!\x1b[0m")
+            return varName
+
+
 class XbbMvaInputsList(object):
 
     def __init__(self, expressions, config=None):

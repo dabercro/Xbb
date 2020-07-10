@@ -3,6 +3,7 @@ from __future__ import print_function
 from optparse import OptionParser
 import ROOT
 ROOT.gROOT.SetBatch(True)
+ROOT.v5.TFormula.SetMaxima(10000)
 
 from myutils import NewTreeCache as TreeCache
 from myutils.sampleTree import SampleTree as SampleTree
@@ -10,6 +11,7 @@ from myutils import BetterConfigParser, ParseInfo
 from myutils.NewStackMaker import NewStackMaker as StackMaker
 from myutils.samplesclass import Sample
 from myutils.FileLocator import FileLocator
+from myutils.XbbTools import XbbTools
 import os,sys
 
 class PlotHelper(object):
@@ -49,7 +51,10 @@ class PlotHelper(object):
             varListFromConfig = self.config.get(self.configSection, 'vars').split(',')
             print ("VARS::", self.configSection, " => ", varListFromConfig)
             self.vars = [x.strip() for x in varListFromConfig if len(x.strip()) > 0]
-        
+
+        # resolve plot variables (find plot section name if ROOT expression is given)
+        self.vars = [XbbTools.resolvePlotVariable(var, self.config) for var in vars]
+
         # additional cut to only plot a subset of the region
         self.subcut = None
         if self.config.has_option(self.configSection, 'subcut'):

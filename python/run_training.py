@@ -20,7 +20,10 @@ class MvaTrainingHelper(object):
         self.config = config
         self.factoryname = config.get('factory', 'factoryname')
         self.factorysettings = config.get('factory', 'factorysettings')
-        self.samplesPath = config.get('Directories', 'MVAin')
+        if config.has_option('Directories', 'trainingSamples'):
+            self.samplesPath = config.get('Directories', 'trainingSamples')
+        else:
+            self.samplesPath = config.get('Directories', 'MVAin')
         self.samplesInfo = ParseInfo(samples_path=self.samplesPath, config=self.config) 
 
         self.sampleFilesFolder = config.get('Directories', 'samplefiles')

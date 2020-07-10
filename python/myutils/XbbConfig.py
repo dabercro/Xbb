@@ -3,6 +3,7 @@ from __future__ import print_function
 import BetterConfigParser
 import os
 import inspect
+import ROOT
 from itertools import ifilter
 from copytreePSI import filelist
 from FileLocator import FileLocator
@@ -51,6 +52,14 @@ class XbbConfigTools(object):
     def initFS(self, force=False): 
         if self.fileLocator is None or force:
             self.fileLocator = FileLocator(config=self.config)
+
+    def loadNamespaces(self):
+        #default
+        try:
+            defaultNamespace = self.get('VHbbNameSpace','library')
+            ROOT.gSystem.Load(defaultNamespace)
+        except Exception as e:
+            print(e)
 
     # list of DATA sample names
     def getData(self):

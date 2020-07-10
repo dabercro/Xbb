@@ -10,7 +10,7 @@ from BranchTools import AddCollectionsModule
 # propagate JES/JER systematics from jets to higgs candidate dijet pair 
 class HiggsCandidateSystematics(AddCollectionsModule):
     
-    def __init__(self, addSystematics=True, prefix="H", addBoostSystematics=False, addMinMax=False):
+    def __init__(self, addSystematics=True, prefix="H", addBoostSystematics=False, addMinMax=False,puIdCut=6, jetIdCut=4):
         super(HiggsCandidateSystematics, self).__init__()
         self.version = 1
         self.debug = 'XBBDEBUG' in os.environ
@@ -20,6 +20,8 @@ class HiggsCandidateSystematics(AddCollectionsModule):
         self.addMinMax = addMinMax
         self.prefix = prefix
         self.addBoostSystematics = addBoostSystematics
+        self.puIdCut = puIdCut
+        self.jetIdCut = jetIdCut
 
         self.jetSystematicsResolved = ['jer','jerReg','jesAbsoluteStat','jesAbsoluteScale','jesAbsoluteFlavMap','jesAbsoluteMPFBias','jesFragmentation','jesSinglePionECAL','jesSinglePionHCAL','jesFlavorQCD','jesRelativeJEREC1','jesRelativeJEREC2','jesRelativeJERHF','jesRelativePtBB','jesRelativePtEC1','jesRelativePtEC2','jesRelativePtHF','jesRelativeBal','jesRelativeFSR','jesRelativeStatFSR','jesRelativeStatEC','jesRelativeStatHF','jesPileUpDataMC','jesPileUpPtRef','jesPileUpPtBB','jesPileUpPtEC1','jesPileUpPtEC2','jesPileUpPtHF','jesPileUpMuZero','jesPileUpEnvelope','jesTotal']
 
@@ -39,10 +41,11 @@ class HiggsCandidateSystematics(AddCollectionsModule):
         self.sample = initVars['sample']
         self.config = initVars['config']
 
-        #jerReg systematics not included in nanoAOD v4 for 2016 dataset.
         self.dataset = self.config.get('General', 'dataset')
-        #if self.dataset == '2016':
-        #    self.jetSystematics.remove('jerReg')
+        if self.dataset == '2016':
+            self.jetIdCut = 2 
+        else:
+            self.jetIdCut = 4
 
 #        if self.addBoostSystematics:
 #            self.boosttagidx = 'Hbb_fjidx'
@@ -194,7 +197,9 @@ class HiggsCandidateSystematics(AddCollectionsModule):
                         # FSR recovery
                         for i in range(nJet):
                             if i not in [hJidx0, hJidx1]:
-                                if Jet_Pt[i] > 20.0 and abs(Jet_eta[i]) < 3.0 and (Jet_puId[i] > 6 or Jet_Pt[i] > 50.0) and Jet_lepFilter[i] > 0:
+                              
+                                if Jet_Pt[i] > 20.0 and abs(Jet_eta[i]) < 3.0 and (Jet_puId[i] > self.puIdCut or Jet_Pt[i] > 50.0) and Jet_lepFilter[i] > 0 and Jet_jetId[i] > self.jetIdCut:
+
 
                                     # b-jet regression is not applied to FSR jets
                                     FSR = ROOT.TLorentzVector()
@@ -328,7 +333,4 @@ class HiggsCandidateSystematics(AddCollectionsModule):
         cdown   = 1. + r*math.sqrt(max(self.Rdown**2-1,0))
 
         return [cdown, cup]
-
-
-
 

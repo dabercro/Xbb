@@ -24,7 +24,9 @@ class HeppyStyleGen(AddCollectionsModule):
             self.branchBuffers['VtypeSim'] = array.array('i', [0])
             self.branches.append({'name': 'VtypeSim', 'formula': self.getBranch, 'arguments': 'VtypeSim', 'type': 'i'})
 
-            self.addCollection(Collection('GenBs',['pt','eta','phi','genPartIdx'], maxSize=20))
+            self.addCollection(Collection('GenBs',['pt','eta','phi','genPartIdx'], maxSize=32))
+            self.addCollection(Collection('GenDs',['pt','eta','phi','genPartIdx'], maxSize=32))
+            
             self.addVectorBranch("GenJetAK8_nBhadrons", default=0, branchType='i', length=100, leaflist="GenJetAK8_nBhadrons[nGenJetAK8]/i")
             self.addVectorBranch("GenJetAK8_nBhadrons2p4", default=0, branchType='i', length=100, leaflist="GenJetAK8_nBhadrons2p4[nGenJetAK8]/i")
             self.addVectorBranch("GenJet_nBhadrons", default=0, branchType='i', length=100, leaflist="GenJet_nBhadrons[nGenJet]/i")
@@ -33,11 +35,14 @@ class HeppyStyleGen(AddCollectionsModule):
             #Sum$(GenBs_pt>25&&abs(GenBs_eta)<2.6)
             self.addIntegerBranch("nGenBpt25eta2p6")
             self.addIntegerBranch("nGenBpt20eta2p6")
+            self.addIntegerBranch("nGenDpt25eta2p6")
+            self.addIntegerBranch("nGenDpt20eta2p6")
     
     def processEvent(self, tree):
+
         if not self.hasBeenProcessed(tree):
             self.markProcessed(tree)
-
+            
             if not self.isData:
                 higgsParticles = []
                 vParticles = []
@@ -88,6 +93,9 @@ class HeppyStyleGen(AddCollectionsModule):
                     VtypeSim = -2
                 self.branchBuffers['VtypeSim'][0] = VtypeSim
 
+                # -------------------------------------------------------------------------------------
+                # B hadron counting
+                # -------------------------------------------------------------------------------------
                 # decay chains
                 mothers  = [genParticles.genPartIdxMother[idx] for idx in range(genParticles.size()) ]
                 products = [idx for idx in range(genParticles.size()) if idx not in mothers] 
@@ -168,6 +176,60 @@ class HeppyStyleGen(AddCollectionsModule):
 
                 self._b("nGenBpt25eta2p6")[0] = len([x for x in bHadrons if x['pt']>25 and abs(x['eta'])<2.6])
                 self._b("nGenBpt20eta2p6")[0] = len([x for x in bHadrons if x['pt']>20 and abs(x['eta'])<2.6])
+                
+                # -------------------------------------------------------------------------------------
+                # D hadron counting
+                # -------------------------------------------------------------------------------------
+                # decay chains
+                mothers  = [genParticles.genPartIdxMother[idx] for idx in range(genParticles.size()) ]
+                products = [idx for idx in range(genParticles.size()) if idx not in mothers] 
+
+                chains = []
+                for product in products:
+                    # find last D
+                    idx = product
+                    foundD = False
+                    while not foundD:
+                        if ((((abs(genParticles.pdgId[idx]) // 100) % 10) == 4) or (((abs(genParticles.pdgId[idx]) // 1000) % 10) == 4)) and genParticles.status[idx] == 2:
+                            foundD = True
+                        else:
+                            if genParticles.genPartIdxMother[idx] < 0:
+                                break
+                            idx = genParticles.genPartIdxMother[idx]
+                    if foundD:
+                        isFromBdecay = False
+                        chain = [idx]
+                        while True:
+                            idx = genParticles.genPartIdxMother[idx]
+                            if idx < 0:
+                                break
+                            if ((((abs(genParticles.pdgId[idx]) // 100) % 10) == 5) or (((abs(genParticles.pdgId[idx]) // 1000) % 10) == 5)) and genParticles.status[idx] == 2:
+                                isFromBdecay = True
+                            chain.append(idx)
+                        if not isFromBdecay:
+                            chains.append(chain)
+
+                # filter duplicates
+                unique_chains = [list(x) for x in set(tuple(x) for x in chains)] 
+                delIndices = []
+                for k in range(len(unique_chains)):
+                    for j in range(len(unique_chains)):
+                        if j != k:
+                            if len(unique_chains[k]) > len(unique_chains[j]) and unique_chains[k][-len(unique_chains[j]):] == unique_chains[j]:
+                                delIndices.append(j)
+                delIndices = list(set(delIndices))
+                delIndices.sort(reverse=True)
+                for k in delIndices:
+                    del unique_chains[k]
+
+                # fill collections
+                dHadrons = []
+                for unique_chain in unique_chains:
+                    dHadrons.append({'pt': genParticles.pt[unique_chain[0]], 'eta': genParticles.eta[unique_chain[0]], 'phi': genParticles.phi[unique_chain[0]], 'genPartIdx': unique_chain[0]})
+                self.collections['GenDs'].fromList(dHadrons)
+
+                self._b("nGenDpt25eta2p6")[0] = len([x for x in dHadrons if x['pt']>25 and abs(x['eta'])<2.6])
+                self._b("nGenDpt20eta2p6")[0] = len([x for x in dHadrons if x['pt']>20 and abs(x['eta'])<2.6])
 
         return True
 

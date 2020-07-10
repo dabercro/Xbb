@@ -9,9 +9,11 @@ import numpy as np
 # do jet/lepton selection and skimming
 class VReco(AddCollectionsModule):
 
-    def __init__(self, debug=False, replaceNominal=False):
+    def __init__(self, debug=False, replaceNominal=False, puIdCut=6, jetIdCut=4):
         self.debug = debug or 'XBBDEBUG' in os.environ
         self.replaceNominal = replaceNominal
+        self.puIdCut = puIdCut 
+        self.jetIdCut = jetIdCut
         super(VReco, self).__init__()
         self.version = 2
 
@@ -148,9 +150,9 @@ class VReco(AddCollectionsModule):
                         else:
                             jetPt = getattr(tree, "Jet_pt_{syst}{UD}".format(syst=syst, UD=UD))
                         for i in range(tree.nJet):
-                            if jetPt[i]>30 and tree.Jet_lepFilter[i]>0 and tree.Jet_jetId[i] > 4:
+                            if jetPt[i]>30 and tree.Jet_lepFilter[i]>0 and tree.Jet_jetId[i] > self.jetIdCut:
                                 HTsum30 += jetPt[i]
-                                if tree.Jet_puId[i]>6 or jetPt[i]>50.0:
+                                if tree.Jet_puId[i]>self.puIdCut or jetPt[i]>50.0:
                                     HTsum30puid += jetPt[i]
                         
                         if syst.lower() == 'nominal':

@@ -30,13 +30,13 @@ for dnnRegion in dnnRegions:
             plotVar = config.get(section, 'relPath').strip().replace(' ', '')
             if plotVar == dnnVar or ('('+plotVar+')' == dnnVar):
                 print("match:", dnnVar, " --> ", section.split(':')[1])
-                plotVarList.append(section.split(':')[1])
+                plotVarList.append(section.split(':')[1].strip())
                 found = True
             if found:
                 break
         if not found:
             print("\x1b[31mmissing:", dnnVar, "\x1b[0m")
     print("\ncommand for plotting:")
-    print("--vars", ','.join(plotVarList))
+    print("--vars", ','.join(sorted(list(set(plotVarList)))))
 
 

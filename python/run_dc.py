@@ -2,6 +2,7 @@
 from __future__ import print_function
 import sys, ROOT, warnings
 ROOT.gROOT.SetBatch(True)
+ROOT.v5.TFormula.SetMaxima(10000)
 #suppres the EvalInstace conversion warning bug
 warnings.filterwarnings( action='ignore', category=RuntimeWarning, message='creating converter.*' )
 from optparse import OptionParser

@@ -13,8 +13,6 @@ class METcorr(AddCollectionsModule):
         self.backupPreviousCorrection = backupPreviousCorrection
         self.debug = debug or 'XBBDEBUG' in os.environ
         self.year = year if type(year)==str else str(year)
-        self.debugEvents = debugEvents
-        super(METcorr, self).__init__()
 
     def customInit(self, initVars):
         self.sampleTree = initVars['sampleTree']
@@ -72,6 +70,7 @@ class METcorr(AddCollectionsModule):
             runnb = tree.run 
             runera = self.get_era(runnb)
             npv = tree.PV_npvs
+
             if(npv>100): npv=100;
 
             MET_p4 = ROOT.TLorentzVector()
@@ -135,5 +134,3 @@ class METcorr(AddCollectionsModule):
 
     def afterProcessing(self):
         print "MET corrected!"
-
-
