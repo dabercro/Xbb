@@ -1,4 +1,6 @@
-Requirements = Machine != "T3BTCH010.MIT.EDU"
+Requirements = (UidDomain == "mit.edu") && \
+               (OpSysAndVer == "SL6") && \
+               (Machine != "T3BTCH010.MIT.EDU")
 
 # basic general
 Request_Memory          = 1.2 GB
@@ -10,6 +12,7 @@ Input                   = /dev/null
 use_x509userproxy       = True
 should_transfer_files   = YES
 on_exit_hold            = (ExitBySignal == True) || (ExitCode != 0)
+Universe                = vanilla
 
 periodic_release = (JobRunCount < 5 && CurrentTime - EnteredCurrentStatus > 600)
 periodic_hold = (JobStatus == 2 && CommittedTime - CommittedSuspensionTime > 21600)
