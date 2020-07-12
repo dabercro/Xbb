@@ -52,6 +52,26 @@ import resource
 #    sampleTreeBkg.process()
 # to write the files
 # ------------------------------------------------------------------------------
+
+class TmpOutputName:
+    def __init__(self, formatstring):
+        self.outputFileNameFormat = formatstring
+
+    def format(self, **kwargs):
+        outputFileDirectory = '{outputFolder}/{hash1}/{hash2}'.format(
+            outputFolder=kwargs['outputFolder'],
+            hash1=kwargs['hash'][0:2],
+            hash2=kwargs['hash'][2:4]
+            )
+
+        if not os.path.exists(outputFileDirectory):
+            os.makedirs(outputFileDirectory)
+        
+        kwargs['outputFolder'] = outputFileDirectory
+
+        return self.outputFileNameFormat.format(**kwargs)
+    
+
 class TreeCache:
 
     def __init__(self, sample, cutList='1', branches=None, inputFolder=None, tmpFolder=None, outputFolder=None, chunkNumber=-1, splitFilesChunks=-1, splitFilesChunkSize=-1, debug=False, fileList=None, cutSequenceMode='AND', name='', config=None, fileLocator=None):
@@ -88,7 +108,7 @@ class TreeCache:
         self.tmpFolder = (config.get('Directories', 'scratch') if config else 'tmp/') if tmpFolder is None else tmpFolder
         self.cachedFileNames = []
         self.tmpFiles = []
-        self.outputFileNameFormat = '{outputFolder}/tmp_{hash}_{part}of{parts}.root'
+        self.outputFileNameFormat = TmpOutputName('{outputFolder}/tmp_{hash}_{part}of{parts}.root')
 
         # BRANCHES and chunk information
         self.branches = branches
@@ -301,6 +321,10 @@ class TreeCache:
         for tmpFileName in self.tmpFiles:
             outputFileName = self.outputFolder + '/' + self.tmpFolder.join(tmpFileName.split(self.tmpFolder)[1:])
             print ('copy ', tmpFileName, ' to ', outputFileName)
+
+            if not os.path.exists(os.path.dirname(outputFileName)):
+                os.makedirs(os.path.dirname(outputFileName))
+
             if self.fileLocator.fileExists(outputFileName):
                 self.deleteFile(outputFileName)
             copySuccessful = self.fileLocator.cp(tmpFileName, outputFileName)
