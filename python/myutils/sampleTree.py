@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+
 import ROOT
 import os
 import sys
@@ -42,8 +43,12 @@ from copytreePSI import filelist
 class SampleTree(object):
 
     def __init__(self, samples, treeName=None, limitFiles=-1, splitFilesChunkSize=-1, chunkNumber=1, countOnly=False, verbose=True, config=None, saveMemory=False, xrootdRedirector=None, fileNamesToProcess=None, fileLocator=None):
+
+        self.new_formulas = []
+        self.track_new = False
+
         # sequentialProcessing not much tested yet, can maybe be used as workaround for problems with ROOT version 6.12.07. (not needed in 6.10.09)
-        self.sequentialProcessing = False
+        self.sequentialProcessing = True
         self.verbose = verbose
         self.debug = 'XBBDEBUG' in os.environ
         self.debugProfiling = 'XBBPROFILING' in os.environ
@@ -520,6 +525,23 @@ class SampleTree(object):
     # add a TTreeFormula connected to the TChain
     # ------------------------------------------------------------------------------
     def addFormula(self, formulaName, formula=None):
+        if formulaName in self.formulas:
+            if self.debug:
+                print('formulaName in self.formulas')
+
+            if self.formulas[formulaName]:
+                if self.debug:
+                    print(self.formulas[formulaName])
+
+                return
+
+        if self.debug:
+            print('Adding:', formulaName)
+
+        if self.track_new:
+            print('And Tracking')
+            self.new_formulas.append(formulaName)
+
         if formula is None:
             formula = formulaName
 
@@ -640,6 +662,10 @@ class SampleTree(object):
     # vector valued formulas are not supported
     def evaluate(self, formulaName):  #https://root-forum.cern.ch/t/ttreeformula-evalinstance-return-0-0/16366/11
         if formulaName in self.formulas:
+            if self.debug:
+                if not self.formulas[formulaName]:
+                    print('Evaluate to fail:', formulaName)
+
             if self.formulas[formulaName].GetNdata() > 0:
                 return self.formulas[formulaName].EvalInstance()
             else:
@@ -808,7 +834,7 @@ class SampleTree(object):
                 print("\x1b[31mINFO: sequential processing of trees is enabled!\x1b[0m")
 
                 # backup full list of trees
-                allTrees = self.outputTrees
+                allTrees = list(self.outputTrees)
 
                 # process output files sequentially
                 for singleTree in allTrees:
@@ -835,11 +861,28 @@ class SampleTree(object):
                 print("ERROR: an exception occurred while handling an exception:", e2)
             raise
 
+
+    def clear_new_formulas(self):
+        for new_formula in self.new_formulas:
+            if self.debug:
+                print('Deleting:', new_formula)
+
+            formula = self.formulas[new_formula]
+            print(formula)
+            del formula
+            self.formulas.pop(new_formula)
+
+        self.new_formulas = []
+
+        self.track_new = True
+
     # ------------------------------------------------------------------------------
     # loop over all entries in the TChain and copy events to output trees, if the
     # cuts are fulfilled.
     # ------------------------------------------------------------------------------
     def process_do(self):
+        self.clear_new_formulas()
+
         if self.debug:
             rsrc = resource.RLIMIT_DATA
             # restrict memory
@@ -1102,11 +1145,14 @@ class SampleTree(object):
         print('INFO: saveMemory is ', self.saveMemory)
         sys.stdout.flush()
 
-        if self.saveMemory and not self.sequentialProcessing:
-            self.tree.Reset()
-            self.tree = None
+        if self.saveMemory:
+            if not self.sequentialProcessing:
+                self.tree.Reset()
+                self.tree = None
+
             for outputTree in self.outputTrees:
                 outputTree['tree'] = None
+
             print('INFO: trees in memory destroyed!')
 
         # callbacks after having written file
