@@ -28,7 +28,7 @@ cd Xbb/python
 if [ "$(expr substr $tag 1 3)" = "Zll" ]
 then
 
-    ./runAll.sh run_${sample}_part$part $tag run 1 noid --inputDir=KINFITin --sampleIdentifier=$sample  --addCollections=KinematicFit.fitter  --fileList=$filelist  --outputDir=KINFITout --noretrxy
+    ./runAll.sh run_${sample}_part$part $tag run 1 noid --inputDir=KINFITin --sampleIdentifier=$sample  --addCollections=KinematicFit.fitter  --fileList=$filelist  --outputDir=KINFITout --noretry
 
 fi
 

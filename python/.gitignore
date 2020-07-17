@@ -27,3 +27,4 @@ condor_*.sub
 !myutils/*
 last-submission-*
 logs_*/
+condor_*.cfg
