@@ -378,11 +378,6 @@ class kinFitterXbb(AddCollectionsModule):
                         self._b(self.bDict[syst]['llbbr_eta_fit'])[0]         = -99 
                         self._b(self.bDict[syst]['llbbr_mass_fit'])[0]        = -99
 
-                    del cons_MZ
-                    del cons_x
-                    del cons_y
-                    del fitter
-
                 else:
                     # no two resolved jets
                     self._b(self.bDict[syst]['H_pt_fit'])[0]          = -1 

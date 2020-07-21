@@ -180,6 +180,18 @@ void TKinFitter::resetParams() {
 
 TKinFitter::~TKinFitter() {
 
+  for (auto* element: _constraints)
+    delete element;
+  _constraints.clear();
+
+  for (auto* element: _measParticles)
+    delete element;
+  _measParticles.clear();
+
+  for (auto* element: _unmeasParticles)
+    delete element;
+  _unmeasParticles.clear();
+
 }
 
 void TKinFitter::countMeasParams() {
