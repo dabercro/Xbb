@@ -5,6 +5,7 @@ import numpy as np
 from Jet import Jet
 from BranchTools import Collection
 from BranchTools import AddCollectionsModule
+from XbbConfig import XbbConfigTools
 
 from JMEres import JMEres
 
@@ -60,7 +61,7 @@ class kinFitterXbb(AddCollectionsModule):
 
     def __init__(self, year, branchName="kinFit", useMZconstraint=True, recoilPtThreshold=20.0, jetIdCut=4, puIdCut=6, hJidx="hJidx"):
         super(kinFitterXbb, self).__init__()
-        self.version = 2
+        self.version = 4
         self.branchName = branchName
         self.useMZconstraint = useMZconstraint
         self.debug = False
@@ -102,9 +103,11 @@ class kinFitterXbb(AddCollectionsModule):
     def customInit(self, initVars):
         self.sample = initVars['sample']
         self.config = initVars['config']
+        self.xbbConfig  = XbbConfigTools(self.config)
         if self.systematics is None:
-            if self.config.has_section('KinematicFit') and self.config.has_option('KinematicFit','systematics') and not self.sample.isData():
-                self.systematics = [(x if x != 'Nominal' else None) for x in self.config.get('KinematicFit','systematics').strip().split(' ')]
+            if not self.sample.isData():
+                jetSystematics= self.xbbConfig.getJECuncertainties(step='KinFit')
+                self.systematics = [None] + [x+'_Up' for x in jetSystematics] + [x+'_Down' for x in jetSystematics] 
             else:
                 self.systematics = [None]
         print("INFO: computing the fit for", len(self.systematics), " variations.")
@@ -112,7 +115,7 @@ class kinFitterXbb(AddCollectionsModule):
         self.bDict = {}
         for syst in self.systematics:
             self.bDict[syst] = {}
-            for n in ['H_mass_fit', 'H_eta_fit', 'H_phi_fit', 'H_pt_fit', 'HVdPhi_fit', 'jjVPtRatio_fit', 'hJets_pt_0_fit', 'hJets_pt_1_fit', 'V_pt_fit', 'V_eta_fit', 'V_phi_fit', 'V_mass_fit', 'H_mass_sigma_fit','H_pt_sigma_fit', 'hJets_pt_0_sigma_fit', 'hJets_pt_1_sigma_fit', 'H_pt_corr_fit', 'llbb_pt_fit', 'llbb_eta_fit', 'llbb_phi_fit', 'llbb_mass_fit', 'llbbr_pt_fit', 'llbbr_eta_fit', 'llbbr_phi_fit', 'llbbr_mass_fit']:
+            for n in ['H_mass_fit', 'H_eta_fit', 'H_phi_fit', 'H_pt_fit', 'HVdPhi_fit', 'jjVPtRatio_fit', 'hJets_pt_0_fit', 'hJets_pt_1_fit', 'V_pt_fit', 'V_eta_fit', 'V_phi_fit', 'V_mass_fit', 'H_mass_sigma_fit','H_pt_sigma_fit', 'hJets_pt_0_sigma_fit', 'hJets_pt_1_sigma_fit', 'H_pt_corr_fit', 'llbb_pt_fit', 'llbb_eta_fit', 'llbb_phi_fit', 'llbb_mass_fit', 'llbbr_pt_fit', 'llbbr_eta_fit', 'llbbr_phi_fit', 'llbbr_mass_fit', 'H_mass_fit_noJetMass']:
                 branchNameFull = self.branchName + "_" + n + ('_' + syst if not self._isnominal(syst) else '')
                 self.bDict[syst][n] = branchNameFull
                 self.addBranch(branchNameFull)
@@ -145,9 +148,17 @@ class kinFitterXbb(AddCollectionsModule):
             self.count('_debug_resolved_idx_syst_exists')
             return getattr(tree, indexNameSyst)
         else:
+            print("\x1b[31mDOES NOT HAVE INDEX:", indexNameSyst,"\x1b[0m")
             self.count('_debug_resolved_idx_fallback_nom')
             self.count('_debug_resolved_idx_fallback_nom_for_'+str(syst))
             return getattr(tree, self.hJidx)
+
+    def getInputSystFormatFromOutputSyst(self, syst):
+        if syst.endswith('_Up'):
+            return syst[:-3] + 'Up'
+        elif syst.endswith('_Down'):
+            return syst[:-5] + 'Down'
+        return syst
 
     def processEvent(self, tree):
         if not self.hasBeenProcessed(tree) and self.enabled:
@@ -157,24 +168,22 @@ class kinFitterXbb(AddCollectionsModule):
             eta = tree.Jet_eta
 
             vLidx = tree.vLidx
-            fsrJidx = []
 
             for syst in self.systematics:
 
                 if not self._isnominal(syst):
                     if syst.endswith('Up'):
                         variation = 'Up'
-                        systBase  = syst[:-2]
+                        systBase  = syst[:-2].strip('_')
                     elif syst.endswith('Down'):
                         variation = 'Down'
-                        systBase  = syst[:-4]
+                        systBase  = syst[:-4].strip('_')
                     else:
                         variation = None
                         systBase  = syst
                 else:
                     variation = None
                     systBase  = syst
-
 
                 hJidx = self.getResolvedJetIndicesFromTree(tree, systBase, variation)
 
@@ -192,16 +201,16 @@ class kinFitterXbb(AddCollectionsModule):
                             mass = tree.Jet_mass_nom
                         # vary JEC
                         else:
-                            pt = getattr(tree, 'Jet_pt_' + syst.replace('_','')) 
+                            pt = getattr(tree, 'Jet_pt_' + self.getInputSystFormatFromOutputSyst(syst)) 
                             # propagate JEC to regressed pt
-                            pt_reg = [tree.Jet_PtReg[i] * getattr(tree, 'Jet_pt_' + syst.replace('_',''))[i] / tree.Jet_Pt[i] for i in range(len(tree.Jet_PtReg))]
-                            mass = getattr(tree, 'Jet_mass_' + syst.replace('_',''))
+                            pt_reg = [tree.Jet_PtReg[i] * getattr(tree, 'Jet_pt_' + self.getInputSystFormatFromOutputSyst(syst))[i] / tree.Jet_Pt[i] for i in range(len(tree.Jet_PtReg))]
+                            mass = getattr(tree, 'Jet_mass_' + self.getInputSystFormatFromOutputSyst(syst))
 
                     # nominal
                     else:
                         pt = tree.Jet_Pt
                         pt_reg = tree.Jet_PtReg
-                        if self.sample.type != 'DATA':
+                        if self.sample.isMC():
                             mass = tree.Jet_mass_nom
                         else:
                             mass = tree.Jet_mass
@@ -211,6 +220,8 @@ class kinFitterXbb(AddCollectionsModule):
                     j2 = fourvector(pt_reg[hJidx[1]], eta[hJidx[1]], phi[hJidx[1]], mass[hJidx[1]] * tree.Jet_PtReg[hJidx[1]]/tree.Jet_Pt[hJidx[1]])
 
                     # FSR jets
+                    fsrJets = []
+                    fsrJidx = []
                     for i in range(tree.nJet):
                         if i not in hJidx and tree.Jet_lepFilter[i] > 0 and (tree.Jet_puId[i] > self.puIdCut or tree.Jet_Pt[i] > 50) and tree.Jet_jetId[i] > self.jetIdCut and pt[i] > 20 and abs(eta[i]) < 3.0:
 
@@ -220,14 +231,17 @@ class kinFitterXbb(AddCollectionsModule):
                             delta_r2 = j_fsr.DeltaR(j2)
 
                             if min(delta_r1, delta_r2) < 0.8:
+                                fsrJets.append(j_fsr)
                                 fsrJidx.append(i)
-                                if delta_r1 < delta_r2:
-                                    j1 += j_fsr
-                                else:
-                                    j2 += j_fsr
+                                #if delta_r1 < delta_r2:
+                                #    j1 += j_fsr
+                                #else:
+                                #    j2 += j_fsr
 
                     fit_j1 = fit_jet(j1, self.HH4B_RES_SCALE)
                     fit_j2 = fit_jet(j2, self.HH4B_RES_SCALE)
+
+                    fit_jets = [fit_j1, fit_j2] + [fit_jet(fsrJet, self.HH4B_RES_SCALE) for fsrJet in fsrJets]
 
                     # recoil jets
                     recoil_jets = []
@@ -260,15 +274,25 @@ class kinFitterXbb(AddCollectionsModule):
                     cons_MZ.addParticle1(fit_l1)
                     cons_MZ.addParticle1(fit_l2)
 
+                    # fit particles
+                    #fit_particles = fit_jets + [fit_l1, fit_l2] + [fit_recoil]
+
                     cons_x = ROOT.TFitConstraintEp('cons_x', '', ROOT.TFitConstraintEp.pX)
-                    cons_x.addParticles(fit_j1, fit_j2, fit_l1, fit_l2, fit_recoil) 
+                    cons_x.addParticles(*fit_jets)
+                    cons_x.addParticles(fit_l1, fit_l2)
+                    cons_x.addParticles(fit_recoil)
 
                     cons_y = ROOT.TFitConstraintEp('cons_y', '', ROOT.TFitConstraintEp.pY)
-                    cons_y.addParticles(fit_j1, fit_j2, fit_l1, fit_l2, fit_recoil) 
+                    cons_y.addParticles(*fit_jets)
+                    cons_y.addParticles(fit_l1, fit_l2)
+                    cons_y.addParticles(fit_recoil)
 
                     # setup fitter
                     fitter = ROOT.TKinFitter()
-                    fitter.addMeasParticles(fit_j1, fit_j2, fit_l1, fit_l2, fit_recoil)
+                    fitter.addMeasParticles(*fit_jets)
+                    fitter.addMeasParticles(fit_l1, fit_l2)
+                    fitter.addMeasParticles(fit_recoil)
+
                     if self.useMZconstraint:
                         fitter.addConstraint(cons_MZ)
                     fitter.addConstraint(cons_x)
@@ -289,15 +313,27 @@ class kinFitterXbb(AddCollectionsModule):
                     # higgs jet output vectors
                     fit_result_j1 = fitter.get4Vec(0)
                     fit_result_j2 = fitter.get4Vec(1)
-                    fit_result_H = fit_result_j1 + fit_result_j2
+                    fit_result_H_noJetMass = fit_result_j1 + fit_result_j2
+                    for iFsr in range(len(fit_jets)-2):
+                        fit_result_H_noJetMass += fitter.get4Vec(2+iFsr)
 
-                    fit_result_l1 = fitter.get4Vec(2)
-                    fit_result_l2 = fitter.get4Vec(3)
+                    # add back jet masses
+                    fit_result_j1.SetPtEtaPhiM(fit_result_j1.Pt(),fit_result_j1.Eta(),fit_result_j1.Phi(), mass[hJidx[0]] * tree.Jet_PtReg[hJidx[0]]/tree.Jet_Pt[hJidx[0]])
+                    fit_result_j2.SetPtEtaPhiM(fit_result_j2.Pt(),fit_result_j2.Eta(),fit_result_j2.Phi(), mass[hJidx[1]] * tree.Jet_PtReg[hJidx[1]]/tree.Jet_Pt[hJidx[1]])
+                    fit_result_H = fit_result_j1 + fit_result_j2
+                    for iFsr in range(len(fit_jets)-2):
+                        j_fsr = fitter.get4Vec(2+iFsr)
+                        j_fsr.SetPtEtaPhiM(j_fsr.Pt(),j_fsr.Eta(),j_fsr.Phi(), mass[fsrJidx[iFsr]])
+                        fit_result_H += j_fsr
+
+                    nFitJets = len(fit_jets)
+                    fit_result_l1 = fitter.get4Vec(nFitJets)
+                    fit_result_l2 = fitter.get4Vec(nFitJets+1)
                     fit_result_V = fit_result_l1 + fit_result_l2
 
                     # H + V (+ recoil)
                     llbb  = fit_result_H + fit_result_V
-                    llbbr = llbb + fitter.get4Vec(4)
+                    llbbr = llbb + fitter.get4Vec(nFitJets+2)
 
                     self._b(self.bDict[syst]['status'])[0] = kinfit_fit
 
@@ -307,6 +343,7 @@ class kinFitterXbb(AddCollectionsModule):
                         self._b(self.bDict[syst]['H_eta_fit'])[0]         = fit_result_H.Eta()
                         self._b(self.bDict[syst]['H_phi_fit'])[0]         = fit_result_H.Phi()
                         self._b(self.bDict[syst]['H_mass_fit'])[0]        = fit_result_H.M()
+                        self._b(self.bDict[syst]['H_mass_fit_noJetMass'])[0] = fit_result_H_noJetMass.M()
                         self._b(self.bDict[syst]['V_pt_fit'])[0]          = fit_result_V.Pt()
                         self._b(self.bDict[syst]['V_eta_fit'])[0]         = fit_result_V.Eta()
                         self._b(self.bDict[syst]['V_phi_fit'])[0]         = fit_result_V.Phi()
@@ -352,6 +389,7 @@ class kinFitterXbb(AddCollectionsModule):
                         self._b(self.bDict[syst]['H_eta_fit'])[0]         = tree.H_eta
                         self._b(self.bDict[syst]['H_phi_fit'])[0]         = tree.H_phi
                         self._b(self.bDict[syst]['H_mass_fit'])[0]        = tree.H_mass
+                        self._b(self.bDict[syst]['H_mass_fit_noJetMass'])[0] = tree.H_mass
                         self._b(self.bDict[syst]['V_pt_fit'])[0]          = tree.V_pt
                         self._b(self.bDict[syst]['V_eta_fit'])[0]         = tree.V_eta
                         self._b(self.bDict[syst]['V_phi_fit'])[0]         = tree.V_phi
@@ -384,6 +422,7 @@ class kinFitterXbb(AddCollectionsModule):
                     self._b(self.bDict[syst]['H_eta_fit'])[0]         = -1 
                     self._b(self.bDict[syst]['H_phi_fit'])[0]         = -1 
                     self._b(self.bDict[syst]['H_mass_fit'])[0]        = -1 
+                    self._b(self.bDict[syst]['H_mass_fit_noJetMass'])[0] = -1 
                     self._b(self.bDict[syst]['V_pt_fit'])[0]          = -1 
                     self._b(self.bDict[syst]['V_eta_fit'])[0]         = -1 
                     self._b(self.bDict[syst]['V_phi_fit'])[0]         = -1 

@@ -63,13 +63,13 @@ class SampleTree(object):
             self.requireAllInputTrees = eval(self.config.get('Configuration', 'requireAllInputTrees')) if self.config.has_option('Configuration', 'requireAllInputTrees') else True
         else:
             self.requireAllInputTrees = False
+        self.maxCutStringLength = int(self.config.get('Configuration', 'maxCutStringLength')) if self.config and self.config.has_option('Configuration', 'maxCutStringLength') else 5000
+
         self.samples = samples
         self.tree = None
         self.nonEmptyTrees = []
         self.processedTrees = []
-        #print('here')
         self.fileLocator = FileLocator(config=self.config, xrootdRedirector=xrootdRedirector) if fileLocator is None else fileLocator
-        #print('here_again')
         self.sampleIdentifier = None
         self.numParts = -1
         self.subcut = None
@@ -87,14 +87,10 @@ class SampleTree(object):
 
         # get list of sample root files to process
         sampleFileNamesParts = self.getSampleFileNameChunks()
-        #print('sampleFileNamesParts', sampleFileNamesParts)  #[['root://t3dcachedb03.psi.ch:1094//pnfs/psi.ch/cms/trivcat/store/user/krgedia/VHbb/Zll/VHbbPostNano2018/sys_5may/ZZ_TuneCP5_13TeV-pythia8/tree_RunIIAutumn18NanoAOD-102X_upgr86_190416_171253_0000_10_619c0318d0c592698755987d1bd9208fea26b3e3fea0d4dd3a9a7f54.root', 'root://t3dcachedb03.psi.ch:1094//pnfs/psi.ch/cms/trivcat/store/user/krgedia/VHbb/Zll/VHbbPostNano2018/sys_5may/ZZ_TuneCP5_........]]
-        #print('self.numParts', self.numParts)  #1
-        #print('self.chunkNumber', self.chunkNumber) #1
         if self.chunkNumber > 0 and self.chunkNumber <= self.numParts:
             if len(sampleFileNamesParts) == self.numParts:
                 chunkIndex = self.chunkNumber - 1  
                 self.sampleFileNames = sampleFileNamesParts[chunkIndex]
-                #print('self.sampleFileNames', self.sampleFileNames)  #['root://t3dcachedb03.psi.ch:1094//pnfs/psi.ch/cms/trivcat/store/user/krgedia/VHbb/Zll/VHbbPostNano2018/sys_5may/ZZ_TuneCP5_13TeV-pythia8/tree_RunIIAutumn18NanoAOD-102X_upgr86_190416_171253_0000_10_61....] 
 
                 # per default add all files to the chain. By using fileNamesToProcess it is possible to only add a part of the files to the chain but at
                 #  the same time retain the normalization histograms from ALL files, this is needed for some split processing modes of the samples which then
@@ -112,7 +108,6 @@ class SampleTree(object):
         if not treeName:
             if self.config and self.config.has_option('Configuration', 'treeName'):
                 self.treeName = self.config.get('Configuration', 'treeName')
-                #print('self.treeName', self.treeName) #Events
             else:
                 # HEPPY default
                 self.treeName = 'tree'
@@ -154,7 +149,6 @@ class SampleTree(object):
                 if self.fileLocator.exists(rootFileName, attempts=3):
                     remoteRootFileName = self.fileLocator.getRemoteFileName(rootFileName)
                     input = ROOT.TFile.Open(remoteRootFileName, 'read')
-                    #print('remoteRootFileName', remoteRootFileName)
 
                     # check file validity
                     if input and not input.IsZombie() and input.GetNkeys() > 0 and not input.TestBit(ROOT.TFile.kRecovered):
@@ -162,31 +156,25 @@ class SampleTree(object):
                             print('DEBUG: file exists and is good!')
 
                         # add count histograms, since they are not in the TChain
-                        #print('input.GetListOfKeys()', input.GetListOfKeys())
                         for key in input.GetListOfKeys():
                             obj = key.ReadObj()
-                            #print('obj.GetName()', obj.GetName())   #iterated: Runs, autoPU, Events
                             if obj.GetName() == self.treeName:
                                 continue
                             histogramName = obj.GetName()
-                            #print('histogramName', histogramName)   #iterated: Runs, autoPU
 
                             # nanoAOD: use branch of a tree instead of histogram for counting
                             if histogramName == 'Runs':
                                 branchList = [x.GetName() for x in obj.GetListOfBranches()]
-                                #print('branchList', branchList)   #['run', 'genEventSumw2', 'nLHEPdfSumw', 'nLHEScaleSumw', 'genEventSumw', 'genEventCount']
                                 if self.debug:
                                     print ("DEBUG: nano counting tree has the following BRANCHES:", branchList)
                                 for branch in branchList:
                                     if branch not in self.nanoTreeCounts:
                                         self.nanoTreeCounts[branch] = []
                                 nEntries = obj.GetEntries()
-                                #print('nEntries', nEntries) 1 always
                                 for i in range(nEntries):
                                     obj.GetEntry(i)
                                     for branch in branchList:
                                         self.nanoTreeCounts[branch].append(getattr(obj, branch))
-                                #print('self.nanoTreeCounts', self.nanoTreeCounts)  #gets append interate:  {'run': [1L], 'genEventSumw2': [132971.46875], 'nLHEPdfSumw': [0L], 'nLHEScaleSumw': [0L], 'genEventSumw': [132985.65625], 'genEventCount': [133000L]}... {'run': [1L, 1L, 1L], 'genEventSumw2': [132971.46875, 6998.5078125, 48989.41796875], 'nLHEPdfSumw': [0L, 0L, 0L], 'nLHEScaleSumw': [0L, 0L, 0L], 'genEventSumw': [132985.65625, 6999.25, 48994.6796875], 'genEventCount': [133000L, 7000L, 49000L]}
 
                             if histogramName in self.histograms:
                                 if obj.IsA().InheritsFrom(ROOT.TTree.Class()):
@@ -194,7 +182,6 @@ class SampleTree(object):
                                         print("DEBUG: object is a tree and will be skipped:", obj.GetName())
                                 else:
                                     if self.histograms[histogramName]:
-                                        #print('here autoPU hists are added using hist1.Add(hist2)')
                                         self.histograms[histogramName].Add(obj)
                                     else:
                                         print ("ERROR: histogram object was None!!!")
@@ -225,9 +212,6 @@ class SampleTree(object):
                             if nEntriesAfter>nEntriesBefore:
                                 self.nonEmptyTrees.append(rootFileName)
 
-                            #chainTree = root://t3dcachedb03.psi.ch:1094///pnfs/psi.ch/cms/trivcat/store/user/krgedia/VHbb/Zll/VHbbPostNano2018/sys_5may/ZZ_TuneCP5_13TeV-pythia8/tree_RunIIAutumn18NanoAOD-102X_upgr86_190416_171253_0000_8_58d6472a6c2138455ddc891e46742bf0bf4635409bea6cbea1891808.root/Events                         
-                            #print('This is where each tree is added to TChain object self.tree')
-                            #print('statusCode', statusCode)   #1 always (if added)
                             if self.debug:
                                 print ('\x1b[42mDEBUG: ---> %r'%statusCode,'\x1b[0m')
      
@@ -240,7 +224,6 @@ class SampleTree(object):
                             else:
                                 self.treeEmpty = False
                                 self.chainedFiles.append(rootFileName)
-                                #print('self.chainedFiles', self.chainedFiles) #interated: ['root://t3dcachedb03.psi.ch:1094//pnfs/psi.ch/cms/trivcat/store/user/krgedia/VHbb/Zll/VHbbPostNano2018/sys_5may/ZZ_TuneCP5_13TeV-pythia8/tree_RunIIAutumn18NanoAOD-102X_upgr86_190416_171253_0000_10_619c0318d0c592698755987d1bd9208fea26b3e3fea0d4dd3a9a7f54.root', 'root://t3dcachedb03.psi.ch:1094//pnfs/psi.ch/cms/trivcat/store/user/krgedia/VHbb/Zll/VHbbPostNano2018/sys_5may/ZZ_TuneCP5_13TeV-pythia8/tree_RunIIAutumn18NanoAOD-102X_upgr86_190416_171253_0000_16_ebe7502f4b0d884060d03cadfddaf82ef6201c8a8f3c6c12c73d290d.root'............]
                                 if self.limitFiles > 0 and len(self.chainedFiles) >= self.limitFiles:
                                     print ('\x1b[35mDEBUG: limit reached! no more files will be chained!!!\x1b[0m')
                                     break
@@ -263,28 +246,21 @@ class SampleTree(object):
             if self.tree:
                 self.tree.SetCacheSize(50*1024*1024)
 
-            #print('self.nanoTreeCounts', self.nanoTreeCounts)
-
             # merge nano counting trees
             if self.nanoTreeCounts:
                 # TODO: per run if possible, sum LHE weights if present
 
                 # sum the contributions from the subtrees
                 self.totalNanoTreeCounts = {key: sum(values) for key,values in self.nanoTreeCounts.iteritems() if len(values) > 0 and type(values[0]) in [int, float, long]}
-                #print('self.totalNanoTreeCounts', self.totalNanoTreeCounts)  #self.totalNanoTreeCounts {'run': 19L, 'genEventSumw2': 1978563.8623046875, 'nLHEPdfSumw': 0L, 'nLHEScaleSumw': 0L, 'genEventSumw': 1978776.7690429688, 'genEventCount': 1979000L}
-
                 # print summary table
                 countBranches = self.totalNanoTreeCounts.keys()
-                #print('countBranches', countBranches) #['run', 'genEventSumw2', 'nLHEPdfSumw', 'nLHEScaleSumw', 'genEventSumw', 'genEventCount']
                 depth = None
                 for key,values in self.nanoTreeCounts.iteritems():
                     if values and len(values)>1 and type(values[0]) in [int, float, long]:
                         depth = len(values)
                         break
-                #print('depth', depth) #19 total trees chained       
                 print("-"*160)
                 print("tree".ljust(25), ''.join([countBranch.ljust(25) for countBranch in countBranches]))
-                #print("tree".ljust(25), ''.join([countBranch.ljust(25) for countBranch in countBranches]))
                 if depth:
                     for treeNum in range(depth):
                         try:
@@ -295,14 +271,12 @@ class SampleTree(object):
                 print("\x1b[34m","sum".ljust(24), ''.join([('%r'%self.totalNanoTreeCounts[countBranch]).ljust(25) for countBranch in countBranches]),"\x1b[0m")
                 print("-"*160)
 
-                #print('self.histograms',self.histograms)  #{'autoPU': <ROOT.TH1D object ("autoPU") at 0x67ac770>}
 
                 # fill summed tree (create new tree) 
                 #keys are different branches and values are corresponding summed values of all tree printed just above. You fill them in a new TTree 'Runs' in dictonary self.histogram with same bracnhes and their summed values.
                 self.histograms['Runs'] = ROOT.TTree('Runs', 'count histograms for nano')
                 nanoTreeCountBuffers = {}
                 for key, value in self.totalNanoTreeCounts.iteritems():
-                    #print('value', value)
                     if type(value) == int:
                         # 64 bit signed int 
                         typeCode = 'L'
@@ -314,7 +288,6 @@ class SampleTree(object):
                     self.histograms['Runs'].Branch(key, nanoTreeCountBuffers[key], '{name}/{typeCode}'.format(name=key, typeCode=typeCode))
                     
                 self.histograms['Runs'].Fill()
-                #print('self.histograms',self.histograms)  #{'Runs': <ROOT.TTree object ("Runs") at 0x6640b90>, 'autoPU': <ROOT.TH1D object ("autoPU") at 0x67ac770>}
 
     def __del__(self):
         self.delete()
@@ -459,6 +432,9 @@ class SampleTree(object):
                 # get list of filenames 
                 sampleFileNames = ["{path}/{sample}/{fileName}".format(path=sampleFolder, sample=self.sampleIdentifier, fileName=self.fileLocator.getFilenameAfterPrep(fileName)) for fileName in sampleFileList]  
 
+                if self.debug:
+                    print("DEBUG: file list from .txt file:", sampleFileList, samplefiles, self.sampleIdentifier)
+
             else:
                 samplesMask = self.fileLocator.getLocalFileName(sampleFolder) + '/' + sampleName + '/*.root'
                 redirector = self.fileLocator.getRedirector(sampleFolder)
@@ -471,6 +447,9 @@ class SampleTree(object):
                     raise Exception("FilesMissing")
 
                 sampleFileNames = [self.fileLocator.addRedirector(redirector, x) for x in sampleFileNames]
+
+                if self.debug:
+                    print("DEBUG: file list from glob:", samplesMask)
 
             if self.verbose:
                 print ("INFO: found ", len(sampleFileNames), " files.")
@@ -504,8 +483,6 @@ class SampleTree(object):
         else:
             sampleFileNamesParts = [sampleFileNames]
         self.numParts = len(sampleFileNamesParts)
-        #print('self.numParts = len(sampleFileNamesParts)', self.numParts)   #1
-        #print('len(sampleFileNames)', len(sampleFileNames))  #19
         return sampleFileNamesParts
 
     # ------------------------------------------------------------------------------
@@ -546,7 +523,7 @@ class SampleTree(object):
             formula = formulaName
 
         # there might be an undocumented limit on the length of cutstrings in ROOT...
-        if len(formula) > 1023:
+        if len(formula) > self.maxCutStringLength:
             print("\x1b[41m\x1b[97m------------------------------------------------------------------------------")
             print(" WARNING !!! ROOT.TTreeFormula of length %d, this might cause problems !!"%len(formula))
             print(" reduce length of formulas if problems occur, e.g. by passing lists of cut formulas!")
@@ -555,12 +532,10 @@ class SampleTree(object):
 
         self.formulaDefinitions.append({'name': formulaName, 'formula': formula})
         self.formulas[formulaName] = ROOT.TTreeFormula(formulaName, formula, self.tree)
-        #print('self.formulas', self.formulas)
         if self.formulas[formulaName].GetNdim() == 0:
             print("DEBUG: formula is:", formula)
             print("\x1b[31mERROR: adding the tree formula failed! Check branches of input tree and loaded namespaces.\x1b[0m")
             raise Exception("SampleTreeAddTTreeFormulaFailed")        
-        #self.formulas for weightF formula: ... {'genWeight*puWeight*((Vtype==1&&HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ) + (Vtype==0)*(4.767/41.298*HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8 + 36.531/41.298*HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8))*muonSF_Iso[0]*muonSF_Id[0]*electronSF_IdIso[0]*electronSF_trigger[0]*bTagWeightDeepCSV*EWKw[0]*weightLOtoNLO*FitCorr[0]': <ROOT.TTreeFormula object ("genWeight*puWeight*((Vtype==1&&HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ) + (Vtype==0)*(4.767/41.298*HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8 + 36.531/41.298*HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8))*muonSF_Iso[0]*muonSF_Id[0]*electronSF_IdIso[0]*electronSF_trigger[0]*bTagWeightDeepCSV*EWKw[0]*weightLOtoNLO*FitCorr[0]") at 0x67a6f60>}
 
     # ------------------------------------------------------------------------------
     # return list of formulas
@@ -572,7 +547,14 @@ class SampleTree(object):
     # add a new branch
     # ------------------------------------------------------------------------------
     def addOutputBranch(self, branchName, formula, branchType='f', length=1, arguments=None, leaflist=None, arrayStyle=False):
-        # this is needed to overwrite the branch if it already exists!
+
+        for b in self.newBranches:
+            if b['name'] == branchName:
+                print("DEBUG: existing:", b)
+                print("DEBUG: new:", branchName, formula, branchType)
+                raise Exception("DuplicateBranch")
+
+        # this is needed to overwrite the branch if it already exists in the input file
         self.addBranchToBlacklist(branchName)
 
         # function
@@ -796,8 +778,6 @@ class SampleTree(object):
     # enables ONLY the given branches (* wildcards supported) and checks existence before enabling them to avoid warning messages during tree iteration
     def enableBranches(self, listOfBranchesToKeep):
         listOfExistingBranches = self.GetListOfBranches()   
-        #print('self.GetListOfBranches()', len(self.GetListOfBranches())) #1762
-        #print('self.tree.GetListOfBranches()', len(self.tree.GetListOfBranches())) #1762
         self.tree.SetBranchStatus("*", 0)
         enabledBranches = []
         for branchName in listOfBranchesToKeep:
@@ -923,6 +903,7 @@ class SampleTree(object):
         if self.config:
             listOfBranchesToKeep += eval(self.config.get('Branches', 'keep_branches'))
         listOfBranchesToKeep = list(set(listOfBranchesToKeep))
+        print("listOfBranchesToKeep   ",listOfBranchesToKeep)
 
         # disable the branches in the input if there is no output tree which wants to have all branches
         if '*' not in listOfBranchesToKeep and len(listOfBranchesToKeep) > 0:
@@ -1210,39 +1191,43 @@ class SampleTree(object):
             if self.verbose:
                 print("DEBUG: XS = ", sample.xsec, sample, type(sample))
 
-        #print('self.totalNanoTreeCounts', self.totalNanoTreeCounts)  # {'run': 19L, 'genEventSumw2': 1978563.8623046875, 'nLHEPdfSumw': 0L, 'nLHEScaleSumw': 0L, 'genEventSumw': 1978776.7690429688, 'genEventCount': 1979000L}
+        countHistogram = self.config.get('Configuration', 'countTreeName') if self.config.has_option('Configuration', 'countTreeName') else None
+        count = None
 
-        if self.totalNanoTreeCounts:
-            if self.config.has_option('Configuration', 'countsFromAutoPU') and eval(self.config.get('Configuration', 'countsFromAutoPU')): #countsFromAutoPU is False by default.
-                count = self.histograms['autoPU'].GetEntries()
-                countHistogram = "autoPU.GetEntries()"
-            else:
-                if not countHistogram:
-                    countHistogram = self.config.get('Configuration', 'countTreeName') if self.config.has_option('Configuration', 'countTreeName') else 'genEventSumw'
-                # NANOAODv6 workaround
-                if countHistogram not in self.totalNanoTreeCounts and countHistogram + '_' in self.totalNanoTreeCounts:
-                    countHistogram = countHistogram + '_'
-                count = self.totalNanoTreeCounts[countHistogram]
-                #print('count', count)  #1978776.76904
-        else:
-            if not countHistogram:
-                try:
-                    posWeight = self.histograms['CountPosWeight'].GetBinContent(1)
-                    negWeight = self.histograms['CountNegWeight'].GetBinContent(1)
-                    count = posWeight - negWeight
-                    countHistogram = 'CountPosWeight - CountNegWeight'
-                except:
-                    if self.verbose:
-                        print("sampleTree: no CountPosWeight/CountNegWeight: using Count instead!!!!!!!!!!!")
+        try:
+            #for NanoAODv7
+            if (countHistogram == "genWtHist"):
+                count = self.histograms["genWtHist"].GetBinContent(1)
+
+            elif self.totalNanoTreeCounts:
+                if self.config.has_option('Configuration', 'countsFromAutoPU') and eval(self.config.get('Configuration', 'countsFromAutoPU')): 
+                    countHistogram = "autoPU.GetEntries()"
+                    count = self.histograms['autoPU'].GetEntries()
+                else:
+                    if countHistogram in self.totalNanoTreeCounts:
+                        count = self.totalNanoTreeCounts[countHistogram]
+                    elif countHistogram + '_' in self.totalNanoTreeCounts:
+                        countHistogram = countHistogram + '_'
+                        count = self.totalNanoTreeCounts[countHistogram]
+            elif(countHistogram is None):
                     try:
-                        count = self.histograms['Count'].GetBinContent(1)
-                    except Exception as e:
-                        print ("EXCEPTION:", e)
-                        print ("ERROR: no weight histograms found in sampleTree => terminate")
-                        print ("HISTOGRAMS:", self.histograms)
-                        exit(0)
-            else:
-                count = self.histograms[countHistogram].GetBinContent(1)
+                        posWeight = self.histograms['CountPosWeight'].GetBinContent(1)
+                        negWeight = self.histograms['CountNegWeight'].GetBinContent(1)
+                        count = posWeight - negWeight
+                        countHistogram = 'CountPosWeight - CountNegWeight'
+                    except:
+                        if self.verbose:
+                            print("sampleTree: no CountPosWeight/CountNegWeight: using Count instead!!!!!!!!!!!")
+                        try:
+                            count = self.histograms['Count'].GetBinContent(1)
+                        except Exception as e:
+                            print ("EXCEPTION:", e)
+                            print ("ERROR: no weight histograms found in sampleTree => terminate")
+                            print ("HISTOGRAMS:", self.histograms)
+                            print ("Is count histogramName specified in Configuration.countTreeName?")
+                            
+        except:
+            print("Will try look for [EventCounts] in config file directly")
 
         # override event counts: config needs a section 'EventCounts' with sample identifier strings as keys and the new count as value
         # [EventCounts]
@@ -1250,14 +1235,15 @@ class SampleTree(object):
         try:
             if self.sampleIdentifier and self.config.has_section('EventCounts') and self.config.has_option('EventCounts', self.sampleIdentifier): #not there
                 countNew = eval(self.config.get('EventCounts', self.sampleIdentifier))
-                print("\x1b[97m\x1b[41mINFO: overwrite event counts with values from config!!!\n value from file:", count, "\n value from config:", countNew," <--- will be used!\x1b[0m")
-                count = countNew
-            #else:
-            #    print("--> don't overwrite counts!", self.sampleIdentifier, self.config.has_section('EventCounts'), self.config.has_option('EventCounts', self.sampleIdentifier))
+                print("\x1b[97m\x1b[41mINFO: overwrite event counts with values from config!!!\n value from file if present is", count, "\n value from config:", countNew," <--- will be used!\x1b[0m")
+                count = countNew 
         except Exception as e:
             print("\x1b[31mException:",e," -> overwriting of event counts has been disabled\x1b[0m")
-
-
+         
+        if (count is None):
+            print("ERROR:Event Counts for ",self.sampleIdentifier, "not found")
+            exit(0) 
+        
         lumi = float(sample.lumi)
         theScale = lumi * sample.xsec * sample.sf / float(count)
 

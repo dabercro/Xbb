@@ -19,16 +19,24 @@ class JetSmearer(AddCollectionsModule):
         self.quickloadWarningShown = False
 
         self.year = year if type(year) == str else str(year)
+        # sicne again wrong smearing was used in post-processor, undo that one first
+        self.unsmear_params = {
+                 '2016': [1.0, 0.0, 0.0, 0.0],
+                 '2017': [1.003, 0.021, 0.031, 0.053],
+                 '2018': [0.987, 0.020, 0.038, 0.054],
+                 }
+        # then afterwards apply the correct smearing
         self.smear_params = {
-                 #'2016': [1.0, 0.0, 0.0, 0.0],
-                 '2017': [1.0029846959, 0.0212893588055, 0.030684, 0.052497],
-                 '2018': [0.98667384694, 0.0197153848807, 0.038481, 0.053924],
+                 '2016': [1.013, 0.014, 0.029, 0.047],
+                 '2017': [1.017, 0.021, 0.058, 0.066],
+                 '2018': [0.985, 0.019, 0.080, 0.073],
                  }
         if self.year not in self.smear_params:
             print("ERROR: smearing for year", self.year, " not available!")
             raise Exception("SmearingError")
 
         self.scale, self.scale_err, self.smear, self.smear_err = self.smear_params[self.year]
+        self.undo_scale, self.undo_scale_err, self.undo_smear, self.undo_smear_err = self.unsmear_params[self.year]
 
     def customInit(self, initVars):
         self.sampleTree = initVars['sampleTree']
@@ -37,9 +45,9 @@ class JetSmearer(AddCollectionsModule):
 
         if self.sample.isMC():
             # resolutions used in post-processor smearing
-            self.unsmearResNom  = 1.1
-            self.unsmearResUp   = 1.2
-            self.unsmearResDown = 1.0
+            #self.unsmearResNom  = 1.1
+            #self.unsmearResUp   = 1.2
+            #self.unsmearResDown = 1.0
 
             self.maxNjet   = 256
             self.PtReg     = array.array('f', [0.0]*self.maxNjet)
@@ -67,7 +75,7 @@ class JetSmearer(AddCollectionsModule):
                     self._b("Jet_PtRegOldUp")[i]   = self.PtRegUp[i]
                     self._b("Jet_PtRegOldDown")[i] = self.PtRegDown[i]
 
-            # original post-procesor smearing which is undone:
+            # original V5 post-procesor smearing which is undone:
             # if isMC:
             #     # until we have final post-regression smearing factors we assume a flat 10%
             #     if sysVar==0: # nominal
@@ -83,19 +91,37 @@ class JetSmearer(AddCollectionsModule):
             #        smearedPt=genJet.Pt()+resSmear*dPt
             #    return smearedPt
 
-            # undo old smearing
+            # original V13 smearing which is undone
+            #if gen_pt:
+            #gen_diff = regressed - gen_pt
+            #nominal = max(0.0, (gen_pt + gen_diff * (1.0 + self.smear_params.smear)) * self.smear_params.scale)
+            #band = math.sqrt(pow(nominal/self.smear_params.scale * self.smear_params.scale_err, 2) +
+            #                 pow(gen_diff * self.smear_params.scale * self.smear_params.smear_err, 2))
+            #down, up = \
+            #    (max(nominal - band, no_smear), nominal + band) \
+            #    if regressed > gen_pt else \
+            #    (min(nominal + band, no_smear), nominal - band)
+            #return SmearResult(down, nominal, up)
+
+      # undo old smearing
             if self.unsmearPreviousCorrection:
                 for i in range(nJet):
                     genJetIdx = tree.Jet_genJetIdx[i]
                     if genJetIdx > -1 and genJetIdx < len(tree.GenJetWithNeutrinos_pt):
                         genJetPt = tree.GenJetWithNeutrinos_pt[genJetIdx]
 
-                        self.PtReg[i]     = genJetPt + (self.PtReg[i] - genJetPt)/self.unsmearResNom
-                        self.PtRegUp[i]   = genJetPt + (self.PtRegUp[i] - genJetPt)/self.unsmearResUp 
-                        self.PtRegDown[i] = genJetPt + (self.PtRegDown[i] - genJetPt)/self.unsmearResDown
+                        #self.PtReg[i]     = genJetPt + (self.PtReg[i] - genJetPt)/self.unsmearResNom
+                        #self.PtRegUp[i]   = genJetPt + (self.PtRegUp[i] - genJetPt)/self.unsmearResUp 
+                        #self.PtRegDown[i] = genJetPt + (self.PtRegDown[i] - genJetPt)/self.unsmearResDown
+                        
+                        self.PtReg[i]     = genJetPt + (self.PtReg[i]/self.undo_scale - genJetPt)/(1.0+self.undo_smear)
+
+                        # new version of smearing does not allow us to go back for up/down variations 
+                        self.PtRegUp[i]   = -1
+                        self.PtRegDown[i] = -1
 
                     # after undoing the smearing, check if up/down variations are the same
-                    assert (max(abs(self.PtReg[i]-self.PtRegUp[i]),abs(self.PtRegUp[i]-self.PtRegDown[i])) < 0.001 or self.PtReg[i] < 0)
+                    # assert (max(abs(self.PtReg[i]-self.PtRegUp[i]),abs(self.PtRegUp[i]-self.PtRegDown[i])) < 0.001 or self.PtReg[i] < 0)
 
             # apply new smearing
             for i in range(nJet):
@@ -115,7 +141,6 @@ class JetSmearer(AddCollectionsModule):
                     self.PtReg[i]     = nominal
                     self.PtRegUp[i]   = up
                     self.PtRegDown[i] = down
-
 
             # formulas by default reload the branch content when evaluating the first instance of the object!
             # SetQuickLoad(1) turns off this behavior

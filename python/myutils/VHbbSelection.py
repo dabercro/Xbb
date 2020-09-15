@@ -5,7 +5,7 @@ from BranchTools import AddCollectionsModule
 import array
 import os
 import itertools
-
+from XbbConfig import XbbConfigTools
 from vLeptons import vLeptonSelector
 
 # do jet/lepton selection and skimming
@@ -52,6 +52,7 @@ class VHbbSelection(AddCollectionsModule):
         self.isData = initVars['sample'].isData()
         self.sample = initVars['sample']
         self.config = initVars['config']
+        self.xbbConfig = XbbConfigTools(self.config)
 
         # settings
         # originally Electron_mvaFall17V1Iso_WP80 was used for 2017, which was called Electron_mvaFall17Iso_WP80
@@ -93,21 +94,11 @@ class VHbbSelection(AddCollectionsModule):
             self.metFilters.append("Flag_eeBadScFilter")
 
         # main tagger (-> hJidx)
-        self.taggerName = "Jet_btagDeepB"
+        self.taggerName = self.config.get('General','Jet_btag')
 
-        ## alternative jet selections to check (->hJidx_*)
-        self.jetDefinitions = []
-
-        # additional jet definitions for DeepJet
-        if self.year in ["2016","2017", "2018"]:
-            self.jetDefinitions = [
-                    {'taggerName': 'Jet_btagDeepB'},
-                    #{'taggerName': 'Jet_btagDeepFlavB', 'indexName':'DeepFlavB'},
-                    ]
-        else:
-            self.jetDefinitions = [
-                    {'taggerName': 'Jet_btagDeepB'},
-                    ]
+        self.jetDefinitions = [
+                {'taggerName': self.taggerName},
+                ]
 
         self.btagWPs = {
                        "2018": {
@@ -192,8 +183,8 @@ class VHbbSelection(AddCollectionsModule):
             elif "Wlv" in self.channels:
                 self.leptonFlav['EGamma']=3
 
-        self.systematics = ['jer','jerReg','jesAbsoluteStat','jesAbsoluteScale','jesAbsoluteFlavMap','jesAbsoluteMPFBias','jesFragmentation','jesSinglePionECAL','jesSinglePionHCAL','jesFlavorQCD','jesRelativeJEREC1','jesRelativeJEREC2','jesRelativeJERHF','jesRelativePtBB','jesRelativePtEC1','jesRelativePtEC2','jesRelativePtHF','jesRelativeBal','jesRelativeFSR','jesRelativeStatFSR','jesRelativeStatEC','jesRelativeStatHF','jesPileUpDataMC','jesPileUpPtRef','jesPileUpPtBB','jesPileUpPtEC1','jesPileUpPtEC2','jesPileUpPtHF','jesPileUpMuZero','jesPileUpEnvelope','jesTotal']
-        self.METsystematics = [x for x in self.systematics if 'jerReg' not in x] + ['unclustEn']
+        self.systematics        = self.xbbConfig.getJECuncertainties(step='Preselection') 
+        self.METsystematics     = [x for x in self.systematics if 'jerReg' not in x] + ['unclustEn']
         self.systematicsBoosted = [x for x in self.systematics if 'jerReg' not in x] + ['jms', 'jmr']
 
         self.cutFlow = [0] * 16
@@ -632,7 +623,7 @@ class VHbbSelection(AddCollectionsModule):
                     )
 
                 # -> nominal
-                selectedJets = self.HighestTaggerValueBJets(tree, j1ptCut, j2ptCut, self.taggerName, puIdCut=self.puIdCut, jetIdCut=self.jetIdCut, maxJetPtCut=maxJetPtCut, systList=None)
+                selectedJets = self.HighestTaggerValueBJets(tree, j1ptCut, j2ptCut, taggerName, puIdCut=self.puIdCut, jetIdCut=self.jetIdCut, maxJetPtCut=maxJetPtCut, systList=None)
                 taggerPassed = taggerSelection(selectedJets) 
                 if taggerPassed:
                     self._b("hJidx"+indexName)[0] = selectedJets[0]
@@ -653,7 +644,7 @@ class VHbbSelection(AddCollectionsModule):
                     nSystematics = len(systList)
 
                     # this returns a list of lists of jet indices for all systematic variations
-                    selectedJets = self.HighestTaggerValueBJets(tree, j1ptCut, j2ptCut, self.taggerName, puIdCut=self.puIdCut, jetIdCut=self.jetIdCut, maxJetPtCut=maxJetPtCut,  systList=systList)
+                    selectedJets = self.HighestTaggerValueBJets(tree, j1ptCut, j2ptCut, taggerName, puIdCut=self.puIdCut, jetIdCut=self.jetIdCut, maxJetPtCut=maxJetPtCut,  systList=systList)
 
                     # apply pre-selection on tagger
                     for j in range(nSystematics):

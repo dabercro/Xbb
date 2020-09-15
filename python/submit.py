@@ -23,6 +23,7 @@ from myutils.FileLocator import FileLocator
 from myutils.BatchSystem import *
 from myutils.BranchList import BranchList
 from myutils.XbbTools import XbbTools
+from myutils.XbbConfig import XbbConfigTools,XbbConfigReader
 
 try:
     if sys.version_info[0] == 2 and sys.version_info[1] < 7:
@@ -131,13 +132,8 @@ if debugPrintOUts:
 # ------------------------------------------------------------------------------
 # the LIST OF CONFIG FILES is taken from the path config
 # ------------------------------------------------------------------------------
-pathconfig = BetterConfigParser()
-pathconfig.read('%sconfig/paths.ini'%(opts.tag))
 try:
-    _configs = [x for x in pathconfig.get('Configuration', 'List').split(" ") if len(x.strip()) > 0]
-    if 'volatile.ini' in _configs:
-        _configs.remove('volatile.ini')
-    configs = ['%sconfig/'%(opts.tag) + c for c in _configs]
+    config = XbbConfigReader.read(opts.tag)
 except Exception as e:
     print("\x1b[31mERROR:" + str(e) + "\x1b[0m")
     print("\x1b[31mERROR: configuration file not found. Check config-tag specified with -T and presence of '[Configuration] List' in .ini files.\x1b[0m")
@@ -148,12 +144,8 @@ if opts.ftag == '':
     opts.ftag = opts.task.replace(':','').replace('.','')
 
 if debugPrintOUts:
-    print 'configs', configs
+    print 'configs', opts.tag
     print 'opts.ftag', opts.ftag
-
-# read config
-config = BetterConfigParser()
-config.read(configs)
 
 # ------------------------------------------------------------------------------
 # COPY CONFIG files to log output folder
@@ -161,7 +153,7 @@ config.read(configs)
 # ------------------------------------------------------------------------------
 combinedConfigFileName = None
 if configurationNeeded:
-    tagDir = pathconfig.get('Directories', 'tagDir')
+    tagDir = config.get('Directories', 'tagDir')
     if debugPrintOUts:
         print 'tagDir', tagDir
     DirStruct={
@@ -180,107 +172,72 @@ if configurationNeeded:
     if debugPrintOUts:
         print 'DirStruct', DirStruct
 
+    # create output folders
     for keys in ['tagDir', 'ftagdir', 'logpath', 'plotpath', 'limitpath', 'confpath']:
         try:
             os.stat(DirStruct[keys])
         except:
-            os.mkdir(DirStruct[keys])
+            os.makedirs(DirStruct[keys])
+    config.set('Directories', 'plotpath', DirStruct['plotpath'])
+    config.set('Directories', 'logpath', DirStruct['logpath'])
+    config.set('Directories', 'limits', DirStruct['limitpath'])
 
-    # new behavior: write special .ini file, which is not under version control and is always recreated again
-    with open("{tag}config/volatile.ini".format(tag=opts.tag), "w") as outputFile:
-        vConfig = BetterConfigParser()
-        vConfig.add_section('Directories')
-        vConfig.set('Directories', 'plotpath', DirStruct['plotpath'])
-        vConfig.set('Directories', 'logpath', DirStruct['logpath'])
-        vConfig.set('Directories', 'limits', DirStruct['limitpath'])
+    # command line options used to alter config
+    if opts.setOptions:
+        # allow multiple --set options to be passed
+        setOptions = ';'.join(opts.setOptions)
 
-        # replace arbitrary options with --set command line argument:
-        # e.g. --set='Plot_general.var:=<!Plot_general|vars_reduced!>'
-        # this will set var in [Plot_general] to: <!Plot_general|vars_reduced!>
-        # to set multiple options, use ; to separate, e.g. --set='Plot_general.var:=Hmass;Plot_general.saveDataHistograms:=True'
+        # escaping of semicolon
+        setOptions = setOptions.replace('\;', '##SEMICOLON##')
+        prevSection = None
+        for optValue in setOptions.split(";"):
+            optValue = optValue.replace('##SEMICOLON##', ';').strip()
+            syntaxOk = True
+            try:
+                if ':=' in optValue:
+                    opt = optValue.split(':=')[0]
+                    value = optValue.split(':=')[1]
+                elif '=' in optValue:
+                    splitParts = optValue.split('=')
+                    if len(splitParts) > 2:
+                        print "\x1b[31mWARNING: more than one equal sign found in expression, split at the first one! use ':=' to force split at another position!\x1b[0m"
+                    opt = optValue.split('=')[0]
+                    value = '='.join(optValue.split('=')[1:])
+                elif optValue:
+                    opt = optValue.split(':')[0]
+                    value = optValue.split(':')[1]
+            except Exception as e:
+                print "ERROR:",e
+                print "ERROR: syntax error in:", optValue
+                print "ERROR: use ; to separate options and use \; to escape semicolons in case they are inside the value. Use := for assignment."
+                syntaxOk = False
+                raise
 
-        if opts.setOptions:
-            # allow multiple --set options to be passed
-            setOptions = ';'.join(opts.setOptions)
-            
-            # escaping of semicolon
-            setOptions = setOptions.replace('\;', '##SEMICOLON##')
-            prevSection = None
-            for optValue in setOptions.split(";"):
-                optValue = optValue.replace('##SEMICOLON##', ';').strip()
-                syntaxOk = True
-                try:
-                    if ':=' in optValue:
-                        opt = optValue.split(':=')[0]
-                        value = optValue.split(':=')[1]
-                    elif '=' in optValue:
-                        splitParts = optValue.split('=')
-                        if len(splitParts) > 2:
-                            print "\x1b[31mWARNING: more than one equal sign found in expression, split at the first one! use ':=' to force split at another position!\x1b[0m"
-                        opt = optValue.split('=')[0]
-                        value = '='.join(optValue.split('=')[1:])
-                    elif optValue:
-                        opt = optValue.split(':')[0]
-                        value = optValue.split(':')[1]
-                except Exception as e:
-                    print "ERROR:",e
-                    print "ERROR: syntax error in:", optValue
-                    print "ERROR: use ; to separate options and use \; to escape semicolons in case they are inside the value. Use := for assignment."
-                    syntaxOk = False
-                    raise
+            if syntaxOk:
 
-                if syntaxOk:
+                configSection = opt.split('.')[0]
+                configOption  = opt.split('.')[1]
 
-                    configSection = opt.split('.')[0]
-                    configOption  = opt.split('.')[1]
-
-                    if len(configSection.strip()) < 1:
-                        if prevSection is None:
-                            raise Exception("ConfigSetError")
-                        else:
-                            configSection = prevSection
-                    
-                    prevSection = configSection
-                    if not vConfig.has_section(configSection):
-                        vConfig.add_section(configSection)
-                    if config.has_section(configSection) and config.has_option(configSection, configOption):
-                        print "\x1b[31mCONFIG: SET", "{s}.{o}".format(s=configSection, o=configOption), "=", value, "\x1b[0m"
+                if len(configSection.strip()) < 1:
+                    if prevSection is None:
+                        raise Exception("ConfigSetError")
                     else:
-                        print "\x1b[31mCONFIG: ADD", "{s}.{o}".format(s=configSection, o=configOption), "=", value, "\x1b[0m"
-                    vConfig.set(configSection, configOption, value)
+                        configSection = prevSection
 
+                prevSection = configSection
+                newOption = False
+                if not config.has_section(configSection):
+                    config.add_section(configSection)
+                    newOption = True
+                if not config.has_option(configSection, configOption):
+                    newOption = True
 
-        outputFile.write('# this file has been created automatically and will be overwritten by submit.py!\n')
-        vConfig.write(outputFile)
+                if not newOption:
+                    print "\x1b[31mCONFIG: SET", "{s}.{o}".format(s=configSection, o=configOption), "=", value, "\x1b[0m"
+                else:
+                    print "\x1b[31mCONFIG: ADD", "{s}.{o}".format(s=configSection, o=configOption), "=", value, "\x1b[0m"
+                config.set(configSection, configOption, value)
 
-    config.read("{tag}config/volatile.ini".format(tag=opts.tag))
-
-    # old behavior: overwrite paths.ini (will only be done if one of the paths to modify has been found!)
-    pathfile = open('%sconfig/paths.ini'%opts.tag)
-    buffer = pathfile.readlines()
-    pathfile.close()
-    volatilePathsFound = False
-    for line in buffer:
-        if line.startswith('plotpath') or line.startswith('logpath') or line.startswith('limits'):
-            volatilePathsFound = True
-    if volatilePathsFound:
-        os.rename('%sconfig/paths.ini'%opts.tag,'%sconfig/paths.ini.bkp'%opts.tag)
-        pathfile = open('%sconfig/paths.ini'%opts.tag,'w')
-        for line in buffer:
-            if line.startswith('plotpath'):
-                line = 'plotpath: %s\n'%DirStruct['plotpath']
-            elif line.startswith('logpath'):
-                line = 'logpath: %s\n'%DirStruct['logpath']
-            elif line.startswith('limits'):
-                line = 'limits: %s\n'%DirStruct['limitpath']
-            pathfile.write(line)
-        pathfile.close()
-
-    # copy config files
-    for item in configs:
-        # if relative path to other config folder, just take file name
-        destConfigFileName = item.split('/')[-1]
-        shutil.copyfile(item, '%s/%s'%(DirStruct['confpath'], destConfigFileName))
     # combined config
     combinedConfigFileName = '%s/submission_%s.ini'%(DirStruct['confpath'], submitTimestamp)
     if os.path.isfile(combinedConfigFileName):
@@ -380,7 +337,8 @@ else:
 # CREATE DICTIONARY TO BE USED AT JOB SUBMISSION TIME
 #  ------------------------------------------------------------------------------
 repDict = {
-    'en': opts.tag,
+    'en': opts.tag if not opts.tag.endswith('.ini') else 'file',
+    'config': opts.tag,
     'logpath': logPath,
     'job': '',
     'task': opts.task,
@@ -426,30 +384,7 @@ def waitFor(jobNameList):
 #  all samples but QCD: -S '*,!QCD*'
 # ------------------------------------------------------------------------------
 def filterSampleList(sampleIdentifiers, samplesList):
-    if samplesList and len([x for x in samplesList if x]) > 0:
-        filteredList = []
-        for expr in samplesList:
-            if expr in sampleIdentifiers:
-                filteredList.append(expr)
-            elif '*' in expr and not expr.startswith('!'):
-                for sampleIdentifier in sampleIdentifiers:
-                    if fnmatch.fnmatch(sampleIdentifier, expr):
-                        filteredList.append(sampleIdentifier)
-            elif '*' in expr and expr.startswith('!'):
-                expr = expr[1:]
-                newList = []
-                for x in filteredList:
-                    if not fnmatch.fnmatch(x, expr):
-                        newList.append(x)
-                filteredList = newList
-            elif expr.startswith('!'):
-                expr = expr[1:]
-                filteredList = [x for x in filteredList if x!=expr]
-
-        filteredList = list(set(filteredList))
-        return filteredList
-    else:
-        return sampleIdentifiers
+    return XbbTools.filterSampleList(sampleIdentifiers, samplesList)
 
 # ------------------------------------------------------------------------------
 # STANDARD WORKFLOW SUBMISSION FUNCTION
@@ -713,13 +648,14 @@ if opts.task == 'hadd':
     inputDir          = opts.input if opts.input else "HADDin"
     outputDir         = opts.output if opts.output else "HADDout"
     inputPath = config.get("Directories", inputDir)
-    outputPath = config.get("Directories", outputDir) 
+    outputPath = config.get("Directories", outputDir)
 
     samplefiles = config.get('Directories', 'samplefiles')
     info = ParseInfo(samples_path=inputPath, config=config)
     sampleIdentifiers = filterSampleList(info.getSampleIdentifiers(), samplesList)
 
-    samplefilesMerged = samplefiles + '/merged_' + opts.tag + '/'
+    configName = config.get('Directories','Dname').split('_')[-1] 
+    samplefilesMerged = samplefiles + '/merged_' + configName + '/'
     fileLocator.makedirs(samplefilesMerged)
 
     # process all sample identifiers (correspond to folders with ROOT files)
@@ -786,9 +722,12 @@ if opts.task == 'hadd':
                     print "\x1b[31mERROR: no good files for this sample available:",sampleIdentifier,"!\x1b[0m"
 
             # write text file for merged files
-            mergedFileListFileName = '{path}/{sample}.{ext}'.format(path=samplefilesMerged, sample=sampleIdentifier, ext='txt')
-            with open(mergedFileListFileName, 'w') as mergedFileListFile:
-                mergedFileListFile.write('\n'.join(mergedFileNames))
+            if len(mergedFileNames) > 0:
+                mergedFileListFileName = '{path}/{sample}.{ext}'.format(path=samplefilesMerged, sample=sampleIdentifier, ext='txt')
+                with open(mergedFileListFileName, 'w') as mergedFileListFile:
+                    mergedFileListFile.write('\n'.join(mergedFileNames))
+            else:
+                print "\x1b[31mERROR: merged file list empty! .txt file has not been written!!\x1b[0m"
 
             print "INFO: hadd {sample}: {a} => {b}".format(sample=sampleIdentifier, a=len(sampleFileList), b=len(splitFilesChunks))
             print "INFO:  > {mergedFileListFileName}".format(mergedFileListFileName=mergedFileListFileName)
@@ -814,6 +753,8 @@ if opts.task == 'count':
     # process all sample identifiers (correspond to folders with ROOT files)
     eventNumberOffsetDict = {}
     chunkSizes = []
+    numOutputTrees = []
+    badSamples = []
     for sampleIdentifier in sampleIdentifiers:
         try:
             sampleFileList = filelist(samplefiles, sampleIdentifier)
@@ -825,27 +766,37 @@ if opts.task == 'count':
         if sampleIdentifier not in eventNumberOffsetDict:
             eventNumberOffsetDict[sampleIdentifier] = {}
 
-        for fileName in sampleFileList:
-            localFileName = fileLocator.getFilenameAfterPrep(fileName)
-            inputFileName = "{path}/{subfolder}/{filename}".format(path=pathIN, subfolder=sampleIdentifier, filename=localFileName)
-            eventNumberOffsetDict[sampleIdentifier][inputFileName] = offset
+        try:
+            for fileName in sampleFileList:
+                localFileName = fileLocator.getFilenameAfterPrep(fileName)
+                inputFileName = "{path}/{subfolder}/{filename}".format(path=pathIN, subfolder=sampleIdentifier, filename=localFileName)
+                eventNumberOffsetDict[sampleIdentifier][inputFileName] = offset
 
-            sampleTree = SampleTree([inputFileName], config=config)
-            nEvents = sampleTree.tree.GetEntries()
-            print fileName, nEvents
-            offset += nEvents
-        numberOfTrees = len(sampleFileList)
-        totalEvents = offset
-        eventsPerTree = totalEvents*1.0/numberOfTrees
-        chunkSize = math.ceil(haddTargetNumEvents/eventsPerTree) if eventsPerTree > 0 else 9999
-        chunkSizes.append([sampleIdentifier, chunkSize])
+                sampleTree = SampleTree([inputFileName], config=config)
+                nEvents = sampleTree.tree.GetEntries()
+                print fileName, nEvents
+                offset += nEvents
+            numberOfTrees = len(sampleFileList)
+            totalEvents = offset
+            eventsPerTree = totalEvents*1.0/numberOfTrees
+            chunkSize = math.ceil(haddTargetNumEvents/eventsPerTree) if eventsPerTree > 0 else 9999
+            chunkSizes.append([sampleIdentifier, chunkSize])
+            numOutputTrees.append([sampleIdentifier, int(numberOfTrees/chunkSize)])
+        except Exception as e:
+            print "\x1b[31mERROR:",e,"\x1b[0m"
+            badSamples.append(sampleIdentifier)
+    for sampleIdentifier, numTrees in numOutputTrees:
+        print "{s}: {c}".format(s=sampleIdentifier, c=int(numTrees))
     print "---"
     print "add the section below to your config before running the 'hadd' step!"
     print "---"
     print "[Hadd]"
+    chunkSizes.sort(key=lambda x: x[0])
     for sampleIdentifier, chunkSize in chunkSizes:
         print "{s}: {c}".format(s=sampleIdentifier, c=int(chunkSize))
     print "---"
+    if len(badSamples) > 0:
+        print "FAILED for:", ",".join(badSamples)
     countsFileName = opts.tag + 'config/event_counts.dat'
     with open(countsFileName, 'w') as ofile:
         ofile.write('%r'%eventNumberOffsetDict)
@@ -1066,7 +1017,13 @@ if opts.task == 'efficiency':
 # CACHETRAINING: prepare skimmed trees including the training/eval cuts 
 # -----------------------------------------------------------------------------
 if opts.task.startswith('cachetraining'):
-    trainingRegions = [x.strip() for x in (config.get('MVALists','List_for_submitscript')).split(',')]
+    trainingRegions = XbbTools.parseList(config.get('MVALists','List_for_submitscript'), separator=',')
+    if opts.regions:
+        defaultRegions = trainingRegions
+        if len(opts.regions.strip()) > 0:
+            trainingRegions = opts.regions.split(',')
+        if '*' in opts.regions:
+            trainingRegions = XbbTools.filterList(defaultRegions, trainingRegions)
     allBackgrounds = list(set(sum([eval(config.get(trainingRegion, 'backgrounds')) for trainingRegion in trainingRegions], [])))
     allSignals = list(set(sum([eval(config.get(trainingRegion, 'signals')) for trainingRegion in trainingRegions], [])))
     allData = list(set(sum([eval(config.get(trainingRegion, 'data')) for trainingRegion in trainingRegions if config.has_option(trainingRegion, 'data')], [])))
@@ -1081,8 +1038,12 @@ if opts.task.startswith('cachetraining'):
         print "data:"
         for sampleName in sorted(allData):
             print " >", sampleName
-    
+
     # get samples info
+    if config.has_option('Directories', 'trainingSamples'):
+        inputPath = config.get('Directories', 'trainingSamples')
+    else:
+        inputPath = config.get('Directories', 'MVAin')
     inputPath = config.get('Directories', 'MVAin')
     tmpPath   = config.get('Directories', 'tmpSamples')
     info = ParseInfo(samples_path=inputPath, config=config)
@@ -1093,7 +1054,7 @@ if opts.task.startswith('cachetraining'):
     print "sample identifiers: (", len(sampleIdentifiers), ")"
     for sampleIdentifier in sorted(sampleIdentifiers):
         print " >", sampleIdentifier
-  
+
     printInputOutputInfo(inputPath, tmpPath, config=config, opts=opts)
 
     # per job parallelization parameter can split regions into several job
@@ -1141,14 +1102,17 @@ if opts.task.startswith('cachetraining'):
 # EXPORT HDF5: export training regions to HDF5 format for DNN training 
 # -----------------------------------------------------------------------------
 if opts.task.startswith('export_h5') or opts.task.startswith('export_hdf5'):
-    
+
     printInputOutputInfo(config.get('Directories', 'MVAin'), None, config=config, opts=opts)
 
-    trainingRegions = [x.strip() for x in (config.get('MVALists','List_for_submitscript')).split(',')]
+    trainingRegions = XbbTools.parseList(config.get('MVALists','List_for_submitscript'), separator=',')
     if opts.regions:
-        enabledTrainingRegions = opts.regions.strip().split(',')
-        if len(enabledTrainingRegions) > 0:
-            trainingRegions = [x for x in trainingRegions if x in enabledTrainingRegions]
+        defaultRegions = trainingRegions
+        if len(opts.regions.strip()) > 0:
+            trainingRegions = opts.regions.split(',')
+        if '*' in opts.regions:
+            trainingRegions = XbbTools.filterList(defaultRegions, trainingRegions)
+
     for region in trainingRegions:
         jobDict = repDict.copy()
         jobDict.update({
@@ -1200,10 +1164,14 @@ if opts.task.startswith('dnn'):
 # CACHEPLOT: prepare skimmed trees with cuts for the CR/SR
 # -----------------------------------------------------------------------------
 if opts.task.startswith('cacheplot'):
-    regions = [x.strip() for x in (config.get('Plot_general', 'List')).split(',')]
+    regions = XbbTools.parseList(config.get('Plot_general', 'List'), separator=',')
     if opts.regions:
+        defaultRegions = regions
         if len(opts.regions.strip()) > 0:
             regions = opts.regions.split(',')
+        if '*' in opts.regions:
+            regions = XbbTools.filterList(defaultRegions, regions)
+
     sampleNames = list(eval(config.get('Plot_general', 'samples')))
     dataSampleNames = list(eval(config.get('Plot_general', 'Data')))
 
@@ -1232,10 +1200,14 @@ if opts.task.startswith('cacheplot'):
 
         # number of files to process per job 
         splitFilesChunkSize = min([getCachingChunkSize(sample, config) for sample in samples if sample.identifier == sampleIdentifier])
-        splitFilesChunks = SampleTree({
-                'name': sampleIdentifier, 
-                'folder': config.get('Directories', 'plottingSamples')
-            }, countOnly=True, splitFilesChunkSize=splitFilesChunkSize, config=config).getSampleFileNameChunks()
+        try:
+            splitFilesChunks = SampleTree({
+                    'name': sampleIdentifier, 
+                    'folder': config.get('Directories', 'plottingSamples')
+                }, countOnly=True, splitFilesChunkSize=splitFilesChunkSize, config=config).getSampleFileNameChunks()
+        except Exception as e:
+            print "\x1b[31mERROR:",e,"\x1b[0m"
+            splitFilesChunks = []
         print "DEBUG: split after ", splitFilesChunkSize, " files => number of parts = ", len(splitFilesChunks)
             
         # submit all the single parts
@@ -1269,7 +1241,7 @@ if opts.task.startswith('cacheplot'):
 # RUNPLOT: make CR/SR plots. Needs cacheplot before. 
 # -----------------------------------------------------------------------------
 if opts.task.startswith('runplot'):
-    
+
     printInputOutputInfo(config.get('Directories', 'plottingSamples'), 'logpath', config=config, opts=opts)
 
     # if only a subset of samples is plotted
@@ -1283,9 +1255,13 @@ if opts.task.startswith('runplot'):
     else:
         sampleIdentifiers = None
 
-    regions = [x.strip() for x in (config.get('Plot_general', 'List')).split(',')]
-    if opts.regions and len(opts.regions.strip()) > 0:
-        regions = opts.regions.split(',')
+    regions = XbbTools.parseList(config.get('Plot_general', 'List'), separator=',')
+    if opts.regions:
+        defaultRegions = regions
+        if len(opts.regions.strip()) > 0:
+            regions = opts.regions.split(',')
+        if '*' in opts.regions:
+            regions = XbbTools.filterList(defaultRegions, regions)
 
     if len(opts.vars.strip()) > 0:
         plotVars = opts.vars.strip().split(',')
@@ -1384,7 +1360,14 @@ if opts.task.startswith('dcyields') or opts.task == 'yields':
 if opts.task.startswith('cachedc'):
     # get list of all sample names used in DC step
     sampleNames = []
-    regions = [x.strip() for x in config.get('LimitGeneral', 'List').split(',') if len(x.strip()) > 0]
+    regions = XbbTools.parseList(config.get('LimitGeneral', 'List'), separator=',')
+    if opts.regions:
+        defaultRegions = regions
+        if len(opts.regions.strip()) > 0:
+            regions = opts.regions.split(',')
+        if '*' in opts.regions:
+            regions = XbbTools.filterList(defaultRegions, regions)
+
     if config.has_option('LimitGeneral', 'addSample_sys'):
         addSample_sys = eval(config.get('LimitGeneral', 'addSample_sys'))
         sampleNames += [addSample_sys[key] for key in addSample_sys]
@@ -1402,7 +1385,7 @@ if opts.task.startswith('cachedc'):
     print "sample identifiers: (", len(sampleIdentifiers), ")"
     for sampleIdentifier in sampleIdentifiers:
         print " >", sampleIdentifier
-        
+
     # check existence of cached files before job submission, otherwise it will be checked at the beginning of the job
     if opts.skipExisting:
         status = {}
@@ -1411,7 +1394,7 @@ if opts.task.startswith('cachedc'):
             status[region] = dcMaker.getCacheStatus(useSampleIdentifiers=sampleIdentifiers)
             print "INFO: done checking files for region\x1b[34m",region, "\x1b[0m(",i, "of", len(regions),")"
         printSamplesStatus(samples=samples, regions=regions, status=status)
-    
+
     # per job parallelization parameter can split regions into several jobs
     if opts.parallel:
         regionChunkSize = int(opts.parallel)
@@ -1419,7 +1402,7 @@ if opts.task.startswith('cachedc'):
     else:
         # default is all at once
         regionChunks = [regions]
-    
+
     printInputOutputInfo(sampleFolder, config.get('Directories', 'tmpSamples'), config=config, opts=opts)
 
     # submit jobs, 1 to n separate jobs per sample
@@ -1446,7 +1429,7 @@ if opts.task.startswith('cachedc'):
         # use same size for all subsamples for now
         splitFilesChunkSize = min([getCachingChunkSize(sample, config) for sample in samples if sample.identifier == sampleIdentifier])
         splitFilesChunks = SampleTree({
-                'name': sampleIdentifier, 
+                'name': sampleIdentifier,
                 'folder': sampleFolder
             }, countOnly=True, splitFilesChunkSize=splitFilesChunkSize, config=config).getSampleFileNameChunks()
         print "DEBUG: split after ", splitFilesChunkSize, " files => number of parts = ", len(splitFilesChunks)
@@ -1756,6 +1739,29 @@ if opts.task == 'summary':
     except:
         print "\x1b[31mERROR: 'weightF' missing in section 'Weights'!\x1b[0m"
 
+# check sample status for various steps
+if opts.task == 'samplestatus':
+    xbb               = XbbConfigTools(config)
+    folders           = XbbTools.parseList(opts.folders, separator=',')
+    sampleIdentifiers = xbb.getSampleIdentifiers(samplesList)
+
+    for sampleIdentifier in sampleIdentifiers:
+        status = xbb.formatSampleName(sampleIdentifier, 80, True) + ' '
+
+        for folder in folders:
+            fileNames     = xbb.getFileNames(sampleIdentifier, folder=folder)
+            filesGood     = all(xbb.fs().exists(fileName) and xbb.fs().isValidRootFile(fileName) for fileName in fileNames)
+            anyFileExists = any(xbb.fs().exists(fileName) and xbb.fs().isValidRootFile(fileName) for fileName in fileNames)
+            if len(fileNames) < 1:
+                status += "\x1b[41m\x1b[97m0\x1b[0m"
+            elif filesGood:
+                status += "\x1b[42m\x1b[97m+\x1b[0m"
+            elif anyFileExists:
+                status += "\x1b[43m\x1b[97m/\x1b[0m"
+            else:
+                status += "\x1b[41m\x1b[97m-\x1b[0m"
+        print status
+
 # checks file status for several steps/folders at once
 if opts.task.replace(':','.').split('.')[0] == 'status':
     fileLocator = FileLocator(config=config)
@@ -1801,13 +1807,16 @@ if opts.task.replace(':','.').split('.')[0] == 'status':
    
     # print the full sample name at the end so can resubmit them using -S sample1,sample2
     missing_samples_list = []
+    good_samples_list = []
     completely_empty_samples_list = []
     nFiles = 0
     nFilesDone = 0
     for folder in foldersToCheck:
         folderStatus = fileStatus[folder]
         print "---",folder,"-"*100
-        for sampleIdentifier, sampleStatus in folderStatus.iteritems():
+        sampleStatusList = folderStatus.items()
+        sampleStatusList.sort(key=lambda x: x[0])
+        for sampleIdentifier, sampleStatus in sampleStatusList:
             sampleShort = (sampleIdentifier if len(sampleIdentifier)<maxPrintoutLen else sampleIdentifier[:maxPrintoutLen]).ljust(maxPrintoutLen+1)
             statusBar = ""
             for x,number in sampleStatus:
@@ -1822,6 +1831,8 @@ if opts.task.replace(':','.').split('.')[0] == 'status':
             nSamplesGood = len([x for x,n in sampleStatus if x])
             if nSamplesGood != len(sampleStatus):
                 missing_samples_list.append(sampleIdentifier)
+            elif nSamplesGood > 0:
+                good_samples_list.append(sampleIdentifier)
             if nSamplesGood == 0:
                 completely_empty_samples_list.append(sampleIdentifier)
             if len(sampleStatus) < 1:
@@ -1833,8 +1844,12 @@ if opts.task.replace(':','.').split('.')[0] == 'status':
             nFilesDone += len([x for x,n in sampleStatus if x])
         print "total: %d/%d"%(nFilesDone, nFiles)
     if len(missing_samples_list) > 0:
+        print 'Good samples:',','.join(good_samples_list)
+        print '-----'
         print 'To submit missing sample only, used option -S', ','.join(missing_samples_list)
     if len(completely_empty_samples_list) > 0:
+        print 'Good samples:',','.join(good_samples_list)
+        print '-----'
         print '\nTo submit empty samples, used option -S', ','.join(completely_empty_samples_list)
     if len(failedJobs) > 0:
         print "-"*20
@@ -2198,15 +2213,16 @@ batchSystem.submitQueue()
 
 # dump submitted jobs
 if batchSystem.getNJobsSubmitted() > 0 and not opts.resubmit:
-    fileName = 'submissions/' + opts.tag + '_' + submitTimestamp +  '.json' 
+    submissionName = opts.tag if not opts.tag.endswith('.ini') else 'fromFile'
+    fileName = 'submissions/' + submissionName + '_' + submitTimestamp +  '.json'
     try:
         batchSystem.dumpSubmittedJobs(fileName)
         if not os.path.isdir('submissions'):
             os.makedirs('submissions')
-        for copyName in ['last-submission-' + opts.tag + '.json', 'last-submission-' + opts.tag + '_' + opts.task + '.json']:
+        for copyName in ['last-submission-' + submissionName + '.json', 'last-submission-' + submissionName + '_' + opts.task + '.json']:
             shutil.copyfile(fileName, copyName)
     except Exception as e:
         print "ERROR: coudn't dump submitted jobs to json file ", fileName, "!", e
 
 
-    
+

@@ -8,6 +8,7 @@ from itertools import ifilter
 from copytreePSI import filelist
 from FileLocator import FileLocator
 from sample_parser import ParseInfo
+from XbbTools import XbbTools
 
 # helper class to read full config object
 # use:
@@ -27,19 +28,26 @@ class XbbConfigReader(object):
             print("DEBUG: read configuration \x1b[35m", configTag, "\x1b[0m")
 
         # paths.ini contains list of config files to use, relative to configDirectory
-        pathconfig = BetterConfigParser.BetterConfigParser()
-        pathconfig.read(configDirectory + '/paths.ini')
-        configFiles = [x.strip() for x in pathconfig.get('Configuration', 'List').split(' ') if x.strip() != 'volatile.ini']
+        if configTag.endswith('.ini'):
+            config = BetterConfigParser.BetterConfigParser()
+            config.read(configTag)
+            config.set('Configuration','__temporary_config', "{tag}.volatile.ini".format(tag=configTag))
+        else:
+            pathconfig = BetterConfigParser.BetterConfigParser()
+            pathconfig.read(configDirectory + '/paths.ini')
+            configFiles = [x.strip() for x in pathconfig.get('Configuration', 'List').split(' ') if x.strip() != 'volatile.ini']
 
-        # read actual config
-        config = BetterConfigParser.BetterConfigParser()
-        for configFile in configFiles:
-            if debug:
-                print("DEBUG: --> read configFile:", configFile)
-            config.read(configDirectory + configFile)
+            # read actual config
+            config = BetterConfigParser.BetterConfigParser()
+            for configFile in configFiles:
+                if debug:
+                    print("DEBUG: --> read configFile:", configFile)
+                config.read(configDirectory + configFile)
+            config.set('Configuration','__temporary_config', "{tag}config/volatile.ini".format(tag=configTag))
         if debug:
             print('DEBUG: \x1b[35m read', len(config.sections()), 'sections\x1b[0m')
-        config.set('Configuration', '__self', configTag)
+        if not config.has_option('configuration','__self'):
+            config.set('Configuration', '__self', configTag)
 
         return config
 
@@ -48,10 +56,16 @@ class XbbConfigTools(object):
     def __init__(self, config):
         self.config = config
         self.fileLocator = None
+        self.samplesInfo = None
 
     def initFS(self, force=False): 
         if self.fileLocator is None or force:
             self.fileLocator = FileLocator(config=self.config)
+
+    def fs(self):
+        if self.fileLocator is None:
+            self.initFS()
+        return self.fileLocator
 
     def loadNamespaces(self):
         #default
@@ -68,7 +82,20 @@ class XbbConfigTools(object):
     # list of MC sample names
     def getMC(self):
         return eval(self.config.get('Plot_general', 'samples'))
-    
+
+    def getSamplesInfo(self):
+        if self.samplesInfo is None:
+            self.samplesInfo = ParseInfo(config=self.config)
+        return self.samplesInfo
+
+    # processed sample identifiers (may not be actually USED)
+    def getSampleIdentifiers(self, filterList=None):
+        s = self.getSamplesInfo().getSampleIdentifiers()
+        if filterList is not None:
+            s = XbbTools.filterSampleList(s, filterList)
+        s.sort()
+        return s
+
     # list of all sample names (data + mc)
     def getUsedSamples(self):
         return self.getMC() + self.getData()
@@ -80,7 +107,10 @@ class XbbConfigTools(object):
     # get list of file names (e.g. in SYSout folder)
     def getFileNames(self, sampleIdentifier, folder='SYSout'):
         self.initFS()
-        originalFileNames = self.getOriginalFileNames(sampleIdentifier)
+        try:
+            originalFileNames = self.getOriginalFileNames(sampleIdentifier)
+        except:
+            originalFileNames = []
         samplePath = self.config.get('Directories', folder)
         fileNames = ["{path}/{subfolder}/{filename}".format(path=samplePath, subfolder=sampleIdentifier, filename=self.fileLocator.getFilenameAfterPrep(x)) for x in originalFileNames]
         return fileNames
@@ -192,6 +222,23 @@ class XbbConfigTools(object):
     def getPlotVariableSections(self):
         return [x for x in self.config.sections() if x.startswith('plotDef:')]
 
+    def getJECuncertainties(self, step=None):
+        if step is None:
+            configOption = 'JEC'
+        else:
+            configOption = 'JEC_' + step
+        if self.config.has_option('systematics', configOption):
+            systematics = eval(self.config.get('systematics', configOption))
+        elif  self.config.has_option('systematics', 'JEC'):
+            systematics = eval(self.config.get('systematics', 'JEC'))
+        else:
+            # default
+            #systematics = ['jer','jerReg','jesAbsoluteStat','jesAbsoluteScale','jesAbsoluteFlavMap','jesAbsoluteMPFBias','jesFragmentation','jesSinglePionECAL','jesSinglePionHCAL','jesFlavorQCD','jesRelativeJEREC1','jesRelativeJEREC2','jesRelativeJERHF','jesRelativePtBB','jesRelativePtEC1','jesRelativePtEC2','jesRelativePtHF','jesRelativeBal','jesRelativeFSR','jesRelativeStatFSR','jesRelativeStatEC','jesRelativeStatHF','jesPileUpDataMC','jesPileUpPtRef','jesPileUpPtBB','jesPileUpPtEC1','jesPileUpPtEC2','jesPileUpPtHF','jesPileUpMuZero','jesPileUpEnvelope','jesTotal']
+            raise Exception("ConfigError: Specify the JEC list in [systematics]") 
+        systematics = list(set(systematics))
+        systematics.sort()
+        return systematics
+
     def setList(self, setOptions):
         # escaping of semicolon
         semicolonEscapeSequence = '##SEMICOLON##'
@@ -239,6 +286,15 @@ class XbbConfigTools(object):
                 else:
                     print("\x1b[31mCONFIG: ADD", "{s}.{o}".format(s=configSection, o=configOption), "=", value, "\x1b[0m")
                 self.config.set(configSection, configOption, value)
+
+    def formatSampleName(self, sampleIdentifier, maxlen=80, padding=False):
+        if len(sampleIdentifier) > maxlen:
+            s = sampleIdentifier[:maxlen-7] + '...' + sampleIdentifier[-4:]
+        else:
+            s = sampleIdentifier
+        if padding:
+            s = s.ljust(maxlen)
+        return s
 
 class XbbConfigChecker(object):
     def __init__(self, config):

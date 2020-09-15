@@ -39,7 +39,8 @@ class BatchSystem(object):
         self.interactive = interactive
         self.submittedJobs = []
         self.runLocally = local
-        self.configFile = None if interactive else configFile
+        #self.configFile = None if interactive else configFile
+        self.configFile = configFile
 
     # factory
     @staticmethod
@@ -111,7 +112,7 @@ class BatchSystem(object):
     # (this is independent of batch system or local)
     # -----------------------------------------------------------------------------
     def getRunScriptCommand(self, repDict):
-        runScript = 'runAll.sh %(job)s %(en)s '%(repDict)
+        runScript = 'runAll.sh %(job)s %(config)s '%(repDict)
         runScript += repDict['task'] + ' ' + repDict['nprocesses'] + ' ' + repDict['job_id'] + ' ' + repDict['additional']
 
         # add named arguments to run script

@@ -1,0 +1,1 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/WminusH_HToBB_WToLNu_M130_13TeV_powheg_pythia8//RunIIFall17NanoAODv7-PU2017_12110/200520_142945/0000/tree_1.root

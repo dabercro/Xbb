@@ -16,6 +16,7 @@ import sys
 import numpy as np
 from BranchTools import Collection
 from BranchTools import AddCollectionsModule
+from XbbConfig import XbbConfigTools
 
 class GetTopMass(AddCollectionsModule):
 
@@ -40,6 +41,7 @@ class GetTopMass(AddCollectionsModule):
     def customInit(self, initVars):
         self.sample = initVars['sample']
         self.config = initVars['config']
+        self.xbbConfig = XbbConfigTools(self.config)
 
         # Branch names from config
         self.brJetPtReg = "Jet_PtReg"
@@ -75,7 +77,7 @@ class GetTopMass(AddCollectionsModule):
         # only defined for nano at the moment
 
         if self.propagateJES and self.nano:
-            self.jetSystematics = ['jer','jerReg','jesAbsoluteStat','jesAbsoluteScale','jesAbsoluteFlavMap','jesAbsoluteMPFBias','jesFragmentation','jesSinglePionECAL','jesSinglePionHCAL','jesFlavorQCD','jesRelativeJEREC1','jesRelativeJEREC2','jesRelativeJERHF','jesRelativePtBB','jesRelativePtEC1','jesRelativePtEC2','jesRelativePtHF','jesRelativeBal','jesRelativeFSR','jesRelativeStatFSR','jesRelativeStatEC','jesRelativeStatHF','jesPileUpDataMC','jesPileUpPtRef','jesPileUpPtBB','jesPileUpPtEC1','jesPileUpPtEC2','jesPileUpPtHF','jesPileUpMuZero','jesPileUpEnvelope','jesTotal','unclustEn'] 
+            self.jetSystematics = self.xbbConfig.getJECuncertainties(step='Top') + ['unclustEn'] 
 
             if self.addBoostSystematics:
                 self.jetSystematics+= ['jms']

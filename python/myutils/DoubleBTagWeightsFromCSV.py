@@ -4,6 +4,7 @@ import ROOT
 import numpy as np
 import array
 import os
+import fnmatch
 from BranchTools import Collection
 from BranchTools import AddCollectionsModule
 
@@ -12,7 +13,7 @@ class DoubleBTagWeightsFromCSV(AddCollectionsModule):
 
     def __init__(self, year, branchName="bTagWeightDoubleB", fileName="data/btag/deepak8v2_bbvslight.csv"):
         super(DoubleBTagWeightsFromCSV, self).__init__()
-        self.version    = 2
+        self.version    = 3
         self.year       = year
         self.branchName = branchName
         self.fileName   = fileName
@@ -21,6 +22,11 @@ class DoubleBTagWeightsFromCSV(AddCollectionsModule):
         self.SF         = None
         self.jetPtName  = "FatJet_Pt"
         self.taggerName = "FatJet_deepTagMD_bbvsLight"
+
+        self.applyToSamples         = ['DYJets*','ZJets*','WJets*','DYBJets*','ZBJets*','WBJets*','ZH*','WH*','WplusH*','WminusH*','ZZ*','WZ*','WW*']
+        self.applyToHeavyFlavorOnly = ['DYJets*','ZJets*','WJets*','DYBJets*','ZBJets*','WBJets*','ZZ*','WZ*','WW*'] 
+
+        self.isHeavyFlavorProcess = "(nGenBpt25eta2p6>0)" 
 
     def read_pt(self, x):
         if x.strip().lower() == 'inf':
@@ -52,8 +58,11 @@ class DoubleBTagWeightsFromCSV(AddCollectionsModule):
 
 
     def customInit(self, initVars):
-        sample = initVars['sample']
-        self.isData = sample.type == 'DATA'
+        self.sample = initVars['sample']
+        self.sampleTree = initVars['sampleTree']
+        self.isData = self.sample.type == 'DATA'
+        self.applyForThisSample = False
+        self.checkHeavyFlavor = False
         if not self.isData:
             self.SF = [x for x in np.genfromtxt(self.fileName,  dtype=self.CSVformat, delimiter=None, skip_header=1) if int(x[0]) == self.year]
 
@@ -63,6 +72,24 @@ class DoubleBTagWeightsFromCSV(AddCollectionsModule):
             for ptWpBin in self.ptWpBins:
                 for UD in ['Up','Down']:
                     self.addBranch(self.branchName + '_{ptWpBinName}_{UD}'.format(ptWpBinName=ptWpBin[6], UD=UD))
+
+            self.sampleTree.addFormula(self.isHeavyFlavorProcess)
+            #fnmatch.fnmatch
+            if any([fnmatch.fnmatch(self.sample.identifier,x) for x in self.applyToSamples]): 
+                self.applyForThisSample = True
+            if any([fnmatch.fnmatch(self.sample.identifier,x) for x in self.applyToHeavyFlavorOnly]): 
+                self.checkHeavyFlavor = True
+
+        if self.applyForThisSample:
+            print("INFO: Double btag SFs are applied for this sample!")
+            if self.checkHeavyFlavor:
+                print("INFO: -> only for heavy flavor events!")
+        else:
+            print("INFO: Double btag SFs are not applied for this sample!")
+
+
+    def applies(self):
+        return self.applyForThisSample and (not self.checkHeavyFlavor or self.sampleTree.evaluate(self.isHeavyFlavorProcess))
 
     def processEvent(self, tree):
 
@@ -76,23 +103,25 @@ class DoubleBTagWeightsFromCSV(AddCollectionsModule):
 
             # Nominal
             sf = 1.0
-            for i in range(tree.nFatJet):
-                if jetSelection(tree, i): 
-                    sf *= self.get_jet_sf(jetPt[i], jetScore[i])
+            if self.applies():
+                for i in range(tree.nFatJet):
+                    if jetSelection(tree, i): 
+                        sf *= self.get_jet_sf(jetPt[i], jetScore[i])
             self._b(self.branchName)[0] = sf
 
             # variations
             for ptWpBin in self.ptWpBins:
                 for UD in ['Up','Down']:
                     sf = 1.0
-                    for i in range(tree.nFatJet):
-                        if jetSelection(tree, i): 
-                            wpBinMatches = [k for k,v in self.bins.items() if v(jetScore[i])]
-                            if jetPt[i] >= ptWpBin[1] and jetPt[i] < ptWpBin[2] and len(wpBinMatches) == 1 and wpBinMatches[0] == ptWpBin[0]:
-                                variation = 1.0 if UD == 'Up' else -1.0
-                            else:
-                                variation = 0
-                            sf *= self.get_jet_sf(jetPt[i], jetScore[i], variation=variation)
+                    if self.applies():
+                        for i in range(tree.nFatJet):
+                            if jetSelection(tree, i): 
+                                wpBinMatches = [k for k,v in self.bins.items() if v(jetScore[i])]
+                                if jetPt[i] >= ptWpBin[1] and jetPt[i] < ptWpBin[2] and len(wpBinMatches) == 1 and wpBinMatches[0] == ptWpBin[0]:
+                                    variation = 1.0 if UD == 'Up' else -1.0
+                                else:
+                                    variation = 0
+                                sf *= self.get_jet_sf(jetPt[i], jetScore[i], variation=variation)
 
                     self._b(self.branchName + '_{ptWpBinName}_{UD}'.format(ptWpBinName=ptWpBin[6], UD=UD))[0] = sf
 

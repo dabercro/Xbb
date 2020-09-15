@@ -8,6 +8,8 @@ ROOT.gROOT.SetBatch(True)
 from myutils.NewStackMaker import NewStackMaker as StackMaker
 from myutils.samplesclass import Sample
 from myutils.sample_parser import ParseInfo
+from myutils.XbbTools import XbbTools
+
 import os,sys
 import array
 import math
@@ -32,7 +34,7 @@ class PostfitPlotter(object):
 
         # plot Data/B and (S+B)/B instead of Data/(S+B)
         self.dataOverBackground = self.config.has_option('Fit', 'plotDataOverBackground') and eval(self.config.get('Fit', 'plotDataOverBackground'))
-        self.ratioRange = [0.5, 1.75]
+        self.ratioRange = None 
 
         if self.config.has_section('Fit:'+self.region[0]):
             if self.config.has_option('Fit:'+self.region[0], 'var'):
@@ -84,7 +86,7 @@ class PostfitPlotter(object):
         if self.overwriteSignalDefinition and self.config.has_option('LimitGeneral','setupSignals'):
             self.setupSignals = eval(self.config.get('LimitGeneral','setupSignals'))
         else:
-            self.setupSignals = [x for x in self.setup if self.sampleGroupTypeDict[x] == 'SIG']
+            self.setupSignals = [x for x in self.setup if x in self.sampleGroupTypeDict and self.sampleGroupTypeDict[x] == 'SIG']
         print("DEBUG: signals:", self.setupSignals)
 
         shapesFileName = self.config.get('Fit', 'FitDiagnosticsDump')
@@ -104,42 +106,85 @@ class PostfitPlotter(object):
     def getProcesses(self):
         return self.setup
 
-    def getHistogramName(self, process):
+    def getHistogramNames(self, process):
         processName = self.getNameFromDcname(process) 
         
         # use pre-fit signal strength for plotting if blind
         if self.blind and processName in self.setupSignals:
             print("INFO: \x1b[31mBLIND: prefit shapes are plotted for signal!\x1b[0m")
-            histogramName = 'shapes_prefit/{dcRegion}/' + process
+            histogramName = ['shapes_prefit/{dcRegion}/' + process, '{dcRegion}_prefit/' + process]
         else:
-            histogramName = self.directory + '/{dcRegion}/' + process
+            fitType = 'postfit' if 'fit_s' in self.directory else 'prefit'
+            histogramName = [self.directory + '/{dcRegion}/' + process, '{dcRegion}_' + fitType + '/' + process]
 
         print("DEBUG: get shape ", histogramName)
         return histogramName
 
+    def getBins(self, region):
+        nBins = -1
+        bins = None
+        if self.config.has_section('Fit:'+region) and self.config.has_option('Fit:'+region, 'nBins'):
+            nBins   = eval(self.config.get('Fit:'+region, 'nBins'))
+        try:
+            varName = self.config.get('Fit:'+region, 'var')
+            bins    = XbbTools.getPlotVariableBins(varName, config=self.config)
+        except Exception as e:
+            print("ERROR: Can't get plot variable information:", e)
+
+        if bins is None:
+            bins = XbbTools.uniformBins(nBins,0.0,1.0)
+
+        return bins
+
     def getShape(self, process):
 
-        histogramNameTemplate = self.getHistogramName(process)
+        histogramNameTemplates = self.getHistogramNames(process)
         histograms = []
         histogramBins = []
         for x in self.dcRegion:
-            print("REGION:", x, histogramNameTemplate.format(dcRegion=x), " FROM ", self.shapesFile)
-            histograms.append(self.shapesFile.Get(histogramNameTemplate.format(dcRegion=x)))
-            r = self.reverseRegionDict[x] 
-            if self.config.has_section('Fit:'+r) and self.config.has_option('Fit:'+r, 'nBins'):
-                nBins = eval(self.config.get('Fit:'+r, 'nBins'))
-            elif histograms[-1]:
-                nBins = histograms[-1].GetXaxis().GetNbins()
-            else:
-                nBins = 0
-            print("NBINS:", nBins, x, r)
-            histogramBins.append(nBins)
-        #histograms = [self.shapesFile.Get(histogramNameTemplate.format(dcRegion=x)) for x in self.dcRegion]
+            found = False
+            for histogramNameTemplate in histogramNameTemplates:
+                print("REGION:", x, histogramNameTemplate.format(dcRegion=x), " FROM ", self.shapesFile)
+                histogram = self.shapesFile.Get(histogramNameTemplate.format(dcRegion=x))
+                print("H:", histogramNameTemplate, histogram)
+                if isinstance(histogram, ROOT.TGraphAsymmErrors) or isinstance(histogram, ROOT.TH1) or isinstance(histogram, ROOT.TH1D) or isinstance(histogram, ROOT.TH1F):
+                    print("->OK")
+                    found = True
+                    break
+            if not found:
+                return None
+
+            histograms.append(histogram)
+            region = self.reverseRegionDict[x] 
+            bins   = self.getBins(region)
+            print("BINS:", bins, type(bins)) 
+            histogramBins.append(bins)
 
         if len(histograms) == 1:
-            histogram = histograms[0]
+            print("fix bin boundaries:", process)
+            histogram = ROOT.TH1D("h1", "", len(histogramBins[0])-1, histogramBins[0])
+            histogram.SetDirectory(0)
+            histogram.Sumw2()
+
+            if isinstance(histograms[0], ROOT.TGraphAsymmErrors):
+                histogram = histograms[0]
+                for i in range(len(histogramBins[0])-1):
+                    p_x = array.array('d', [0.0])
+                    p_y = array.array('d', [0.0])
+                    histogram.GetPoint(i, p_x, p_y)
+                    histogram.SetPoint(i, 0.5*(histogramBins[0][i]+histogramBins[0][i+1]), p_y[0])
+                    histogram.SetPointEXhigh(i, 0.5*(histogramBins[0][i+1]-histogramBins[0][i]))
+                    histogram.SetPointEXlow(i, 0.5*(histogramBins[0][i+1]-histogramBins[0][i]))
+            else:
+                try:
+                    for i in range(len(histogramBins[0])-1):
+                        histogram.SetBinContent(i+1, histograms[0].GetBinContent(i+1))
+                        histogram.SetBinError(i+1, histograms[0].GetBinError(i+1))
+                except Exception as e:
+                    print("EXCEPTION:",e)
+
         else:
-            nBinsTotal = sum(histogramBins)
+            nBinsTotal = sum([len(x)-1 for x in histogramBins])
             histogram = ROOT.TH1D("h1", "", nBinsTotal, 0, nBinsTotal)
             histogram.SetDirectory(0)
 
@@ -188,6 +233,7 @@ class PostfitPlotter(object):
 
         # if variable definition not given explicitly
         if self.var is None:
+            print("make auto variable...")
             self.var = "__auto"
             self.varSection = "plotDef:" + self.var
             if not self.config.has_section(self.varSection):
@@ -196,37 +242,34 @@ class PostfitPlotter(object):
             self.config.set(self.varSection, 'nBins', '%d'%nBins)
             self.config.set(self.varSection, 'min', '0')
             self.config.set(self.varSection, 'max', '%d'%nBins) 
+        print("INFO: create StackMaker...")
+
+        # overwrite treeVar since we plot from histograms and not trees 
+        self.varSection = "plotDef:" + self.var
+        if not self.config.has_option(self.varSection, "relPath"):
+            self.config.set(self.varSection, "relPath", "1")
+
         self.stack = StackMaker(self.config, self.var, self.region[0], True, self.setup, '_', title=self.title, configSectionPrefix="Fit")
         self.stack.setPlotText(self.plotText)
 
         # add MC
         print("INFO: setup = \x1b[31m", self.setup, "\x1b[0m")
         for process in self.setup:
-            histogram_raw = self.getShape(self.getDcProcessName(process))
-            varSection = "plotDef:" + self.var
-            #nBins    = eval(self.config.get(varSection, "nBins")) if self.config.has_section(varSection) and self.config.has_option(varSection, "nBins") else histogram_raw.GetXaxis().GetNbins()
-            nBins    = eval(self.config.get(varSection, "nBins")) if self.config.has_section(varSection) and self.config.has_option(varSection, "nBins") else None
-            rangeMin = eval(self.config.get(varSection, "min")) if self.config.has_section(varSection) and self.config.has_option(varSection, "min") else None
-            rangeMax = eval(self.config.get(varSection, "max")) if self.config.has_section(varSection) and self.config.has_option(varSection, "max") else None
-            print("DEBUG:", varSection, ": process=", process, "->", self.getDcProcessName(process))
-            if histogram_raw:
-                if rangeMin is not None and rangeMax is not None and nBins is not None:
-                    histogram = self.setBinRange(histogram_raw, nBins, rangeMin, rangeMax) 
-                else:
-                    histogram = histogram_raw
-            else:
-                histogram = None
+            print("\x1b[32mINFO: getShape:", process, "\x1b[0m")
+            histogram = self.getShape(self.getDcProcessName(process))
+            print("\x1b[32mINFO: OK getShape:", process, "\x1b[0m")
 
             if histogram:
                 self.stack.histograms.append({
-                        'name': process, 
+                        'name':      process, 
                         'histogram': histogram, 
-                        'group': process,
-                        'signal': process in self.setupSignals
+                        'group':     process,
+                        'signal':    process in self.setupSignals
                     })
             else:
                 print("\x1b[31mINFO: empty: ",process,"\x1b[0m")
 
+        print("\x1b[32mINFO: all shapes!\x1b[0m")
         #for histogram in self.stack.histograms:
         #    print("DEBUG:", histogram['name'])
         #    for i in range(histogram['histogram'].GetXaxis().GetNbins()):
@@ -262,37 +305,27 @@ class PostfitPlotter(object):
         
         # add DATA
         dataHistogram = self.getShape("data") 
-        pointX = array.array('d', [0.0, 0.0])
-        pointY = array.array('d', [0.0, 0.0])
-
-
-        varSection = "plotDef:" + self.var
-        nBins    = eval(self.config.get(varSection, "nBins")) if self.config.has_section(varSection) and self.config.has_option(varSection, "nBins") else None 
-        rangeMin = eval(self.config.get(varSection, "min")) if self.config.has_section(varSection) and self.config.has_option(varSection, "min") else None
-        rangeMax = eval(self.config.get(varSection, "max")) if self.config.has_section(varSection) and self.config.has_option(varSection, "max") else None
-        if rangeMin is not None and rangeMax is not None and nBins is not None:
-            # move tgraph points to bin centers
-            try:
-                for i in range(dataHistogram.GetN()):
-                    dataHistogram.GetPoint(i, pointX, pointY)
-                    binCenterPosition = (float(i)+0.5)/float(nBins)*(rangeMax-rangeMin)+rangeMin 
-                    print(">>> move point", i, pointX[0], " -> ", binCenterPosition, " nBins=", nBins)
-                    dataHistogram.SetPoint(i, binCenterPosition, pointY[0])
-                    dataHistogram.SetPointEXlow(i, 0.5/float(nBins)*(rangeMax-rangeMin))
-                    dataHistogram.SetPointEXhigh(i, 0.5/float(nBins)*(rangeMax-rangeMin))
-            except Exception as e:
-                print("ERROR:",e)
+        print("DEBUG: \x1b[32m data histogram=", dataHistogram, dataHistogram == None, "\x1b[0m")
+        if dataHistogram == None:
+            print("-> data histogram not found, trying alternative names")
+            dataHistogram = self.getShape("data_obs") 
 
         # blind last few bins
         dataIntegral = 0
         try:
-            for i in range(dataHistogram.GetN()):
-                dataHistogram.GetPoint(i, pointX, pointY)
-                dataIntegral += pointY[0]
-                if int(pointX[0]+1) in self.blindBins:
-                    dataHistogram.SetPoint(i, -100, -100)
+            if isinstance(dataHistogram, ROOT.TGraphAsymmErrors) or isinstance(dataHistogram, ROOT.TGraphErrors):
+                for i in range(dataHistogram.GetN()):
+                    dataHistogram.GetPoint(i, pointX, pointY)
+                    dataIntegral += pointY[0]
+                    if int(pointX[0]+1) in self.blindBins:
+                        dataHistogram.SetPoint(i, -100, -100)
+            else:
+                dataIntegral = dataHistogram.Integral()
+                for i in self.blindBins:
+                    dataHistogram.SetBinContent(1+i,0)
+                    dataHistogram.SetBinError(1+i,0)
         except Exception as e:
-            print("ERROR:",e)
+            print("ERROR: BlindDataHistogram",e)
 
         print("DATA:", dataIntegral, "MC:", sum_s+sum_b)
 
@@ -305,6 +338,13 @@ class PostfitPlotter(object):
                 'histogram': dataHistogram,
                 'group': 'DATA'
             })
+
+        try:
+            totalError = dataHistogram = self.getShape("TotalProcs")
+            if totalError != None:
+                self.stack.setTotalError(totalError)
+        except:
+            pass
 
         # draw
         self.stack.Draw(outputFolder=self.plotPath, prefix='{region}__{var}_'.format(region=self.region[0], var=self.directory), dataOverBackground=self.dataOverBackground, ratioRange=self.ratioRange)
@@ -355,19 +395,23 @@ if __name__ == "__main__":
     scaleFactorTable = []
     plotCommands = []
     for region in regions:
+        print("INFO: ----------")
         print("INFO: region:", region)
-        plotter = PostfitPlotter(config=config, region=region, directory=opts.fitType, blind=not opts.unblind)
-        plotter.prepare()
-        plotter.run()
+        try:
+            plotter = PostfitPlotter(config=config, region=region, directory=opts.fitType, blind=not opts.unblind)
+            plotter.prepare()
+            print("\x1b[32mINFO: run!\x1b[0m")
+            plotter.run()
+        except Exception as e:
+            print("ERROR: plot:", e)
 
-
+        print("INFO: compute SFs:")
         # COMPUTE effective scale factors
         if opts.fitType == 'shapes_fit_s':
             plotter_prefit = PostfitPlotter(config=config, region=region, directory="shapes_prefit", blind=not opts.unblind)
             plotter_prefit.prepare()
         
             regionSF = defaultdict(lambda: 1.0)
-            #regionSF = {'TT': 1.0, 'ZJets_0b': 1.0, 'ZJets_1b': 1.0, 'ZJets_2b': 1.0,'WJets_0b': 1.0, 'WJets_1b': 1.0, 'WJets_2b': 1.0}
 
             for process in plotter.getProcesses():
                 try:
@@ -389,6 +433,7 @@ if __name__ == "__main__":
                     histogram_postfit.Rebin(nBins_postfit)
                     histogram_prefit.Rebin(nBins_prefit)
                     
+                    print("\x1b[35m", region, process, histogram_prefit.GetBinContent(1), histogram_postfit.GetBinContent(1), "\x1b[0m")
                     histogram_postfit.Divide(histogram_prefit)
 
                     scaleFactorTable.append("{region} {process} prefit/postfit = {scale:.2f} +/- {error:.2f}".format(region=region, process=process, scale=histogram_postfit.GetBinContent(1), error=histogram_postfit.GetBinError(1))) 
@@ -399,7 +444,7 @@ if __name__ == "__main__":
             # VHbb specific plot commands for simplifity
             try:
                 regionFormatted = ",".join(region) if type(region) == list else region
-                plotCommand = "./submit.py -J runplot --parallel=8 --regions '{region}' --set='General.SF_TT={SF[TT]};General.SF_ZJets=[{SF[ZJets_0b]},{SF[ZJets_1b]},{SF[ZJets_2b]}];General.SF_WJets=[{SF[WJets_0b]},{SF[WJets_1b]},{SF[WJets_2b]}]'".format(region=regionFormatted, SF=regionSF)
+                plotCommand = "./submit.py -J runplot --parallel=8 --regions '{region}' --set='General.SF_TT={SF[TT]};General.SF_ZJets=[{SF[ZJets_0b_udsg]},{SF[ZJets_0b_c]},{SF[ZJets_1b]},{SF[ZJets_2b]}];General.SF_WJets=[{SF[WJets_0b_udsg]},{SF[WJets_0b_c]},{SF[WJets_1b]},{SF[WJets_2b]}]'".format(region=regionFormatted, SF=regionSF)
                 plotCommands.append(plotCommand)
             except Exception as e:
                 print("WARNING:", e)

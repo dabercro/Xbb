@@ -37,15 +37,15 @@ class MuonSFfromJSON(AddCollectionsModule):
         2017:  {'Zll':{
                     'idSf':'NUM_LooseID_DEN_genTracks',
                     'isoSf':'NUM_LooseRelIso_DEN_LooseID',
-                    'eff_IsoMu8_mc':'Mu8LegMC',
-                    'eff_IsoMu17_mc':'Mu17LegMC',
-                    'eff_IsoMu8_data':'Mu8Leg',
-                    'eff_IsoMu17_data':'Mu17Leg'
+                    'eff_IsoMu8_mc':'Mu8LegTRG2017MC',
+                    'eff_IsoMu17_mc':'Mu17LegTRG2017MC',
+                    'eff_IsoMu8_data':'Mu8LegTRG2017Data',
+                    'eff_IsoMu17_data':'Mu17LegTRG2017Data',
                     },
                 'Wlv':{
-                    'idSf':'NUM_TightID_DEN_genTracks',
-                    'isoSf':'NUM_UltraTightIso4_DEN_TightIDandIPCut',
-                    'triggerSf':'NUM_IsoMu27_DEN_empty'}
+                    'idSf':'TightID2017',
+                    'isoSf':'TightISO2017',
+                    'triggerSf':'TRGIsoMu27TRG2017'}
                 },
         2018:   {'Zll':{
                     'idSf':'NUM_LooseID_DEN_TrackerMuons2018',
@@ -71,7 +71,6 @@ class MuonSFfromJSON(AddCollectionsModule):
             self.eff_IsoMu17_mc = self.jsonTable.getEtaPtTable(self.tablenames[self.year][self.channel]['eff_IsoMu17_mc'], 'abseta_pt') 
             self.eff_IsoMu8_data = self.jsonTable.getEtaPtTable(self.tablenames[self.year][self.channel]['eff_IsoMu8_data'], 'abseta_pt') 
             self.eff_IsoMu17_data = self.jsonTable.getEtaPtTable(self.tablenames[self.year][self.channel]['eff_IsoMu17_data'], 'abseta_pt') 
-            #self.triggerSf = ; not implemented yet
         elif self.channel == 'Wlv':
             if self.year == 2016:
                 for corr in self.tablenames[self.year][self.channel].keys():
@@ -242,9 +241,7 @@ class MuonSFfromJSON(AddCollectionsModule):
                     triggSF = (1+math.sqrt(EffData[1]**2+ EffMC[1]**2))*triggsf
 
         elif self.channel == 'Wlv': 
-           for i in range(len_n):
-                triggSF = triggSF * self.jsonTable.find(self.triggerSf[i], eta[i], pt[i], syst=syst)
-            #print "leg", i, " : eta:", eta[i], " pt:", pt[i], "->", self.jsonTable.find(self.triggerSf[i], eta[i], pt[i], syst=syst)
+            triggSF = triggSF * self.jsonTable.find(self.triggerSf, eta[0], pt[0], syst=syst)
         return triggSF
 
 if __name__ == "__main__":

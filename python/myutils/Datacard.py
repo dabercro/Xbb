@@ -12,6 +12,7 @@ from NewStackMaker import NewStackMaker as StackMaker
 from NewHistoMaker import NewHistoMaker as HistoMaker
 from BranchList import BranchList
 from XbbTools import XbbTools
+from FileLocator import FileLocator
 import array
 import re
 import itertools
@@ -26,7 +27,7 @@ class Datacard(object):
         self.DCtype = 'TH'
         self.histograms = None
         self.histogramCounter = 0
-        self.fileLocator = fileLocator
+        self.fileLocator = fileLocator if fileLocator is not None else FileLocator(config=self.config)
         self.DCprocessSeparatorDict = {'WS':':','TH':'/'}
         VHbbNameSpace = config.get('VHbbNameSpace', 'library')
         returnCode = ROOT.gSystem.Load(VHbbNameSpace)
@@ -1018,14 +1019,18 @@ class Datacard(object):
             sampleIdentifiers = useSampleIdentifier
         else:
             sampleIdentifiers = sorted(list(set([sample.identifier for sample in allSamples])))
+        print("DEBUG: check shape file existence:")
         for sampleIdentifier in sampleIdentifiers:
+            print("DEBUG: -> sample=", sampleIdentifier)
             subsamples = [sample for sample in allSamples if sample.identifier == sampleIdentifier]
             rootFileName = self.getDatacardBaseName(subPartName=sampleIdentifier, chunkNumber=chunkNumber) + '.root'
-            rootFile = ROOT.TFile.Open(rootFileName, 'read')
-            if not rootFile or rootFile.IsZombie():
+            if not self.fileLocator.isValidRootFile(rootFileName):
+                print("DEBUG:   -> ERROR:", rootFileName) 
                 filesExist = False
                 break
-            rootFile.Close()
+            else:
+                print("DEBUG:   -> OK:", rootFileName) 
+            rootFile = ROOT.TFile.Open(rootFileName, 'read')
             txtFileName = self.getDatacardBaseName(subPartName=sampleIdentifier, chunkNumber=chunkNumber) + '.txt'
             if self.produceTextFiles:
                 filesExist = filesExist and os.path.isfile(txtFileName)

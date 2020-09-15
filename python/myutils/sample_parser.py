@@ -91,6 +91,8 @@ class ParseInfo:
                     else:
                         print "\x1b[31mWARNING: different cross sections for the sub-samples of", sampleName, " are you sure you want to do this?\x1b[0m"
                     subsfs = eval((config.get(sample, 'SF'))) if config.has_option(sample, 'SF') else [1.0]*len(subxsecs)
+                    if type(subsfs) != list:
+                        subsfs = [subsfs]*len(subcuts)
 
                 try:
                     subspecialweights = eval((config.get(sample, 'specialweight')))

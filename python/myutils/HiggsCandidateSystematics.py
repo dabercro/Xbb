@@ -6,6 +6,7 @@ import math
 from Jet import Jet
 from BranchTools import Collection
 from BranchTools import AddCollectionsModule
+from XbbConfig import XbbConfigTools
 
 # propagate JES/JER systematics from jets to higgs candidate dijet pair 
 class HiggsCandidateSystematics(AddCollectionsModule):
@@ -23,9 +24,13 @@ class HiggsCandidateSystematics(AddCollectionsModule):
         self.puIdCut = puIdCut
         self.jetIdCut = jetIdCut
 
-        self.jetSystematicsResolved = ['jer','jerReg','jesAbsoluteStat','jesAbsoluteScale','jesAbsoluteFlavMap','jesAbsoluteMPFBias','jesFragmentation','jesSinglePionECAL','jesSinglePionHCAL','jesFlavorQCD','jesRelativeJEREC1','jesRelativeJEREC2','jesRelativeJERHF','jesRelativePtBB','jesRelativePtEC1','jesRelativePtEC2','jesRelativePtHF','jesRelativeBal','jesRelativeFSR','jesRelativeStatFSR','jesRelativeStatEC','jesRelativeStatHF','jesPileUpDataMC','jesPileUpPtRef','jesPileUpPtBB','jesPileUpPtEC1','jesPileUpPtEC2','jesPileUpPtHF','jesPileUpMuZero','jesPileUpEnvelope','jesTotal']
+    def customInit(self, initVars):
+        self.sample = initVars['sample']
+        self.config = initVars['config']
+        self.xbbConfig  = XbbConfigTools(self.config)
 
-        self.jetSystematics = self.jetSystematicsResolved[:]
+        self.jetSystematicsResolved = self.xbbConfig.getJECuncertainties(step='Higgs')
+        self.jetSystematics         = self.jetSystematicsResolved[:]
 
         # corrected dijet (Higgs candidate) properties
         self.higgsProperties = [self.prefix + '_' + x for x in ['pt','eta', 'phi', 'mass','pt_noFSR','eta_noFSR','phi_noFSR','mass_noFSR']]
@@ -36,10 +41,6 @@ class HiggsCandidateSystematics(AddCollectionsModule):
             #self.higgsProperties +=['FatJet_msoftdrop_sys']
             # adding mass scale and resolution systematics
             self.rnd = ROOT.TRandom3(12345)
-
-    def customInit(self, initVars):
-        self.sample = initVars['sample']
-        self.config = initVars['config']
 
         self.dataset = self.config.get('General', 'dataset')
         if self.dataset == '2016':
@@ -99,6 +100,11 @@ class HiggsCandidateSystematics(AddCollectionsModule):
             for syst in self.systematicsResolved:
                 for Q in self._variations(syst):
                     self.addBranch(self._v(higgsProperty, syst, Q))
+
+        self.addBranch('H_noReg_pt')
+        self.addBranch('H_noReg_eta')
+        self.addBranch('H_noReg_phi')
+        self.addBranch('H_noReg_mass')
 
         # additional jet branches
         fBranches = ['hJets_0_pt_noFSR','hJets_1_pt_noFSR','hJets_0_pt_FSRrecovered','hJets_1_pt_FSRrecovered','hJets_FSRrecovered_dEta','hJets_FSRrecovered_dPhi']
@@ -230,6 +236,36 @@ class HiggsCandidateSystematics(AddCollectionsModule):
                         self._b(self._v('hJets_FSRrecovered_dPhi', syst, Q))[0] = abs(hJ0.DeltaPhi(hJ1))
 
                         self._b(self._v('nFSRrecovered', syst, Q))[0] = len(fsrIndices0) + len(fsrIndices1)
+
+                        # for nominal, add pT without regression
+                        if self._isnominal(syst):
+                            hJ0.SetPtEtaPhiM(Jet_Pt[hJidx0], Jet_eta[hJidx0], Jet_phi[hJidx0], Jet_Mass[hJidx0])
+                            hJ1.SetPtEtaPhiM(Jet_Pt[hJidx1], Jet_eta[hJidx1], Jet_phi[hJidx1], Jet_Mass[hJidx1])
+
+                            # FSR recovery
+                            for i in range(nJet):
+                                if i not in [hJidx0, hJidx1]:
+
+                                    if Jet_Pt[i] > 20.0 and abs(Jet_eta[i]) < 3.0 and (Jet_puId[i] > self.puIdCut or Jet_Pt[i] > 50.0) and Jet_lepFilter[i] > 0 and Jet_jetId[i] > self.jetIdCut:
+
+                                        # b-jet regression is not applied to FSR jets
+                                        FSR = ROOT.TLorentzVector()
+                                        FSR.SetPtEtaPhiM(Jet_Pt[i], Jet_eta[i], Jet_phi[i], Jet_Mass[i])
+
+                                        deltaR0 = FSR.DeltaR(hJ0)
+                                        deltaR1 = FSR.DeltaR(hJ1)
+                                        if min(deltaR0, deltaR1) < 0.8:
+                                            if deltaR0<deltaR1:
+                                                hJ0 = hJ0 + FSR
+                                            else:
+                                                hJ1 = hJ1 + FSR
+
+                            dijet = hJ0 + hJ1
+                            self._b('H_noReg_pt')[0] = dijet.Pt()
+                            self._b('H_noReg_eta')[0] = dijet.Eta()
+                            self._b('H_noReg_phi')[0] = dijet.Phi()
+                            self._b('H_noReg_mass')[0] = dijet.M()
+
 
 # jmr/jms taken from post-processor
 #            # ----------------------------------------------------------------------------------------------------

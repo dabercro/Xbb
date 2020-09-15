@@ -31,16 +31,17 @@ def getEventCount(config, sampleIdentifier, cut="1", sampleTree=None, sample=Non
             }, config=config)
     h1 = ROOT.TH1D("h1", "h1", 1, 0, 2)
     scaleToXs = sampleTree.getScale(sample)
-    nEvents = sampleTree.tree.Draw("1>>h1", "(" + cut + ")*genWeight*%1.6f"%scaleToXs)
+    #nEvents = sampleTree.tree.Draw("1>>h1", "(" + cut + ")*genWeight*%1.6f"%scaleToXs, "goff")
+    nEvents = sampleTree.tree.Draw("1>>h1", cut, "goff")
     nEventsWeighted = h1.GetBinContent(1)
-    print("DEBUG:", sampleIdentifier, cut, " MC events:", nEvents, " (weighted:", nEventsWeighted, ")")
+    #print("DEBUG:", sampleIdentifier, cut, " MC events:", nEvents, " (weighted:", nEventsWeighted, ")")
     h1.Delete()
     return nEvents
 
 
 # load config
 config = XbbConfigReader.read(args.tag)
-sampleInfo = ParseInfo(samples_path=config.get('Directories', 'plottingSamples'), config=config)
+sampleInfo = ParseInfo(samples_path=config.get('Directories', args.fromFolder), config=config)
 mcSamples = sampleInfo.get_samples(XbbConfigTools(config).getMC())
 
 pruneThreshold = float(args.prune)
@@ -61,6 +62,7 @@ countDict = {}
 for sampleGroup in sampleGroups:
     count = 0
     for sampleIdentifier in sampleGroup:
+        print "\x1b[32m",sampleIdentifier,"\x1b[0m"
         countDict[sampleIdentifier] = {}
 
         samples_matching = [x for x in mcSamples if x.identifier == sampleIdentifier]
@@ -76,6 +78,9 @@ for sampleGroup in sampleGroups:
                     print "duplicate!!", sampleIdentifier, sampleCut, countDict[sampleIdentifier][sampleCut]
                     raise Exception("duplicate")
                 countDict[sampleIdentifier][sampleCut] = sampleCount
+        else:
+            print sampleIdentifier
+            raise Exception("SampleMissing")
 
 # pruning
 for sampleIdentifier,counts in countDict.iteritems():
@@ -116,4 +121,9 @@ for sampleIdentifier,counts in countDict.iteritems():
     print sampleIdentifier, specialweight
 
 print "-"*80
+
+with open("./stitching.csv", "w") as of:
+    for sampleIdentifier,counts in countDict.iteritems():
+        for cut,cutCount in counts.iteritems():
+            of.write("{s},{c},{v}\n".format(s=sampleIdentifier,c=cut,v=cutCount))
 

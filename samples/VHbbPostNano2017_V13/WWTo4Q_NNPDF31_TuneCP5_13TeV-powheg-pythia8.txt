@@ -1,0 +1,5 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8//RunIIFall17NanoAODv7-PU2017_12104/200520_142528/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8//RunIIFall17NanoAODv7-PU2017_12104/200520_142528/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8//RunIIFall17NanoAODv7-PU2017_12104/200520_142528/0000/tree_3.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8//RunIIFall17NanoAODv7-PU2017_12104/200520_142528/0000/tree_4.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8//RunIIFall17NanoAODv7-PU2017_12104/200520_142528/0000/tree_5.root

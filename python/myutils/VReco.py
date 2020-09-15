@@ -5,6 +5,7 @@ from BranchTools import AddCollectionsModule
 import array
 import os
 import numpy as np
+from XbbConfig import XbbConfigTools
 
 # do jet/lepton selection and skimming
 class VReco(AddCollectionsModule):
@@ -19,11 +20,12 @@ class VReco(AddCollectionsModule):
 
     def customInit(self, initVars):
         self.sampleTree = initVars['sampleTree']
-        self.isData = initVars['sample'].isData()
-        self.sample = initVars['sample']
+        self.isData     = initVars['sample'].isData()
+        self.sample     = initVars['sample']
+        self.config     = initVars['config']
+        self.xbbConfig  = XbbConfigTools(self.config)
 
-        self.jetSystematics = ['jer','jerReg','jesAbsoluteStat','jesAbsoluteScale','jesAbsoluteFlavMap','jesAbsoluteMPFBias','jesFragmentation','jesSinglePionECAL','jesSinglePionHCAL','jesFlavorQCD','jesRelativeJEREC1','jesRelativeJEREC2','jesRelativeJERHF','jesRelativePtBB','jesRelativePtEC1','jesRelativePtEC2','jesRelativePtHF','jesRelativeBal','jesRelativeFSR','jesRelativeStatFSR','jesRelativeStatEC','jesRelativeStatHF','jesPileUpDataMC','jesPileUpPtRef','jesPileUpPtBB','jesPileUpPtEC1','jesPileUpPtEC2','jesPileUpPtHF','jesPileUpMuZero','jesPileUpEnvelope','jesTotal']
-        self.metSystematics = ['unclustEn']
+        self.systematics = self.xbbConfig.getJECuncertainties(step='VReco') + ['unclustEn']
 
         #if self.replaceNominal:
         self.allVariations = ['Nominal']
@@ -32,7 +34,7 @@ class VReco(AddCollectionsModule):
        
         # jet and MET systematics for MC
         if not self.isData:
-            self.allVariations += self.jetSystematics + self.metSystematics
+            self.allVariations += self.systematics 
 
         for syst in self.allVariations:
             self.addVsystematics(syst)
@@ -50,7 +52,7 @@ class VReco(AddCollectionsModule):
                 self.addBranch("V_eta")
                 self.addBranch("V_phi")
                 self.addBranch("V_mass")
-            self.addBranch("V_mt")
+                self.addBranch("V_mt")
             self.addBranch("MET_sig30")
             self.addBranch("MET_sig30puid")
         else:
@@ -75,7 +77,8 @@ class VReco(AddCollectionsModule):
             for syst in self.allVariations:
                 directions = [''] if syst.lower() == 'nominal' else ['Up','Down']
                 for UD in self._variations(syst):
-                    self._b(self._v("V_mt", syst, UD))[0] = -1.0
+                    if not self._isnominal(syst) or self.replaceNominal:
+                        self._b(self._v("V_mt", syst, UD))[0] = -1.0
 
                     if tree.Vtype == 0 or tree.Vtype == 1:
                         lep1 = ROOT.TLorentzVector()
@@ -110,7 +113,8 @@ class VReco(AddCollectionsModule):
                             MET.SetPtEtaPhiM(getattr(tree, "MET_pt_{syst}{UD}".format(syst=syst, UD=UD)), 0.0, getattr(tree, "MET_phi_{syst}{UD}".format(syst=syst, UD=UD)), 0.0)
                         Lep.SetPtEtaPhiM(sel_lepton_pt, sel_lepton_eta, sel_lepton_phi, sel_lepton_mass)
                         cosPhi12 = (Lep.Px()*MET.Px() + Lep.Py()*MET.Py()) / (Lep.Pt() * MET.Pt())
-                        self._b(self._v("V_mt", syst,UD))[0] = ROOT.TMath.Sqrt(2*Lep.Pt()*MET.Pt() * (1 - cosPhi12))
+                        if not self._isnominal(syst) or self.replaceNominal:
+                            self._b(self._v("V_mt", syst,UD))[0] = ROOT.TMath.Sqrt(2*Lep.Pt()*MET.Pt() * (1 - cosPhi12))
 
                         V = MET + Lep
 

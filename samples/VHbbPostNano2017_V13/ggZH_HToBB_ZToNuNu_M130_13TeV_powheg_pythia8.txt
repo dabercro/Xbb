@@ -1,0 +1,3 @@
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/ggZH_HToBB_ZToNuNu_M130_13TeV_powheg_pythia8//RunIIFall17NanoAODv7-PU2017_12123/200520_143916/0000/tree_1.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/ggZH_HToBB_ZToNuNu_M130_13TeV_powheg_pythia8//RunIIFall17NanoAODv7-PU2017_12123/200520_143916/0000/tree_2.root
+/store/group/phys_higgs/hbb/ntuples/VHbbPostNano/2017/V13/ggZH_HToBB_ZToNuNu_M130_13TeV_powheg_pythia8//RunIIFall17NanoAODv7-PU2017_12123/200520_143916/0000/tree_3.root

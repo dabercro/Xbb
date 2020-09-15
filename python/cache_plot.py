@@ -64,11 +64,14 @@ class CachePlot(object):
         # also keep some branches which might be used later in variables definition and weights
         try:
             for section in self.config.sections():
-                if section.startswith('plotDef:') and self.config.has_option(section, 'relPath'):
-                    keepBranchesPlot.append(self.config.get(section, 'relPath'))
-        except Exception as e:
+                try:
+                    if section.startswith('plotDef:') and self.config.has_option(section, 'relPath'):
+                        keepBranchesPlot.append(self.config.get(section, 'relPath'))
+                except Exception as e:
+                    print("\x1b[31mWARNING: config error in:", section, "=>", e, "\x1b[0m")
+        except Exception as e2:
             print("\x1b[31mERROR: config file contains an error! automatic selection of branches to keep will not work!\x1b[0m")
-            print(e)
+            print(e2)
         try:
             keepBranchesPlot.append(self.config.get('Weights', 'weightF'))
         except:
